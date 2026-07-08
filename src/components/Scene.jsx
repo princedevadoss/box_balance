@@ -9,6 +9,7 @@ import { Board } from './Board'
 import { Ball } from './Ball'
 import { Detector } from './Detector'
 import { SceneLighting } from './SceneLighting'
+import { BallJump } from './BallJump'
 
 import { StateBroadcaster } from './StateBroadcaster'
 
@@ -44,6 +45,7 @@ export function Scene({
     <>
       <SceneLighting />
       <CameraRig extent={extent} />
+      <BallJump ballRef={ballRef} status={status} />
 
       <Physics key={runId} gravity={PHYSICS.gravity} paused={status === 'paused'}>
         <Board data={data} bodyRef={boardRef} status={status} heartTaken={heartTaken} />

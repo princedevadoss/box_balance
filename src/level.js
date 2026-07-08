@@ -6,7 +6,7 @@
 //  - others become bumps / boosts / air / lava / a heart pickup
 // Higher levels => bigger grid, sparser shape, farther hole, more hazards.
 
-import { TILE, LEVELGEN, COOP, BALL } from './config'
+import { TILE, LEVELGEN, COOP, BALL, COOP_BOARD_THEMES } from './config'
 
 const CELL = TILE.size
 const THICKNESS = TILE.thickness
@@ -281,9 +281,10 @@ function strengthenSeam(cells, gridN, edge) {
   }
 }
 
-function cloneBoardData(template, position, boardIndex, theme) {
+function cloneBoardData(template, position, boardIndex, theme, playerCount) {
   const cells = deepCloneCells(template.cells)
-  strengthenSeam(cells, template.gridN, boardIndex === 1 ? 'right' : 'left')
+  if (boardIndex > 0) strengthenSeam(cells, template.gridN, 'left')
+  if (boardIndex < playerCount - 1) strengthenSeam(cells, template.gridN, 'right')
   return {
     level: template.level,
     gridN: template.gridN,
@@ -300,39 +301,55 @@ function cloneBoardData(template, position, boardIndex, theme) {
   }
 }
 
-// Co-op: two different boards joined at the seam.
-// Odd levels: spawn on board 1, goal on board 2.
-// Even levels: spawn on board 2, goal on board 1.
-export function generateCoopLevel(level, roomSeed = null) {
-  const seedB = roomSeed != null ? (roomSeed ^ 0xa5a5a5a5) >>> 0 : null
-  const raw1 = generateLevel(level, roomSeed)
-  const raw2 = generateLevel(level, seedB)
+// Co-op: N different boards joined edge-to-edge (2–4 players).
+// Odd levels: spawn on board 0, goal on board N-1.
+// Even levels: spawn on board N-1, goal on board 0.
+export function generateCoopLevel(level, roomSeed = null, playerCount = 2) {
+  const n = Math.max(2, Math.min(4, playerCount))
+  const rawBoards = []
+  for (let i = 0; i < n; i++) {
+    const seed =
+      roomSeed != null ? (Math.imul(roomSeed ^ (i + 1), 0xa5a5a5a5) >>> 0) : null
+    rawBoards.push(generateLevel(level, seed))
+  }
 
-  const extent1 = raw1.gridN * raw1.cell
-  const extent2 = raw2.gridN * raw2.cell
+  const extents = rawBoards.map((b) => b.gridN * b.cell)
   const gap = COOP.boardGap
-  const totalWidth = extent1 + extent2 + gap
-  const board1X = -(extent2 + gap) / 2
-  const board2X = (extent1 + gap) / 2
+  let totalWidth = extents.reduce((sum, e) => sum + e, 0) + gap * (n - 1)
 
-  let board1 = cloneBoardData(raw1, [board1X, 0, 0], 1, 'a')
-  let board2 = cloneBoardData(raw2, [board2X, 0, 0], 2, 'b')
+  let cursor = -totalWidth / 2
+  const boards = []
+  for (let i = 0; i < n; i++) {
+    const centerX = cursor + extents[i] / 2
+    cursor += extents[i] + (i < n - 1 ? gap : 0)
+    boards.push(
+      cloneBoardData(
+        rawBoards[i],
+        [centerX, 0, 0],
+        i,
+        COOP_BOARD_THEMES[i],
+        n
+      )
+    )
+  }
+
   const oddLevel = level % 2 === 1
-  const spawnBoard = oddLevel ? board1 : board2
-  const goalBoard = oddLevel ? board2 : board1
+  const spawnIdx = oddLevel ? 0 : n - 1
+  const goalIdx = oddLevel ? n - 1 : 0
 
-  if (oddLevel) board1 = stripGoal(board1)
-  else board2 = stripGoal(board2)
+  for (let i = 0; i < n; i++) {
+    if (i !== goalIdx) boards[i] = stripGoal(boards[i])
+  }
 
   return {
     level,
-    gridN: Math.max(raw1.gridN, raw2.gridN),
-    cell: raw1.cell,
-    thickness: raw1.thickness,
+    playerCount: n,
+    gridN: Math.max(...rawBoards.map((b) => b.gridN)),
+    cell: rawBoards[0].cell,
+    thickness: rawBoards[0].thickness,
     totalExtent: totalWidth,
-    board1,
-    board2,
-    ball: { spawnBoard, goalBoard },
+    boards,
+    ball: { spawnBoard: boards[spawnIdx], goalBoard: boards[goalIdx] },
   }
 }
 

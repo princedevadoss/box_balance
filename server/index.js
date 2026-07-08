@@ -25,17 +25,11 @@ const MIME = {
   '.webp': 'image/webp',
   '.woff': 'font/woff',
   '.woff2': 'font/woff2',
+  '.hdr': 'application/octet-stream',
 }
 
 function send(ws, payload) {
   if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(payload))
-}
-
-function broadcastMatch(room) {
-  const hostPayload = rooms.matchPayload(room.host)
-  const guestPayload = rooms.matchPayload(room.guest)
-  if (hostPayload) send(room.host, { type: 'MATCHED', ...hostPayload })
-  if (guestPayload) send(room.guest, { type: 'MATCHED', ...guestPayload })
 }
 
 async function serveStatic(req, res) {
@@ -110,17 +104,67 @@ wss.on('connection', (ws) => {
       }
       send(ws, { type: 'JOINED', ...result })
       const room = rooms.getRoom(ws)
-      if (room?.guest) broadcastMatch(room)
+      if (!room) return
+      if (room.mode === 'versus' && room.players.length === 2) {
+        for (const { ws: target, payload } of rooms.broadcastMatch(room)) {
+          send(target, { type: 'MATCHED', ...payload })
+        }
+      } else if (room.mode === 'coop') {
+        for (const { ws: target, payload } of rooms.broadcastLobby(room)) {
+          send(target, { type: 'LOBBY_UPDATE', ...payload })
+        }
+      }
+      return
+    }
+
+    if (msg.type === 'START') {
+      const result = rooms.startRoom(ws)
+      if (result.error) {
+        send(ws, { type: 'ERROR', message: result.error })
+        return
+      }
+      for (const { ws: target, payload } of rooms.broadcastMatch(result.room)) {
+        send(target, { type: 'MATCHED', ...payload })
+      }
       return
     }
 
     if (msg.type === 'STATE') {
+      const room = rooms.getRoom(ws)
+      if (!room?.started) return
+      const info = rooms.clients.get(ws)
+      if (!info) return
+
+      if (room.mode === 'coop') {
+        if (info.slot === 0) {
+          for (const p of room.players) {
+            if (p.ws !== ws) send(p.ws, { type: 'PEER_STATE', state: msg.state })
+          }
+        } else {
+          const host = rooms.getHost(ws)
+          if (host) {
+            send(host, {
+              type: 'PEER_BOARD',
+              slot: info.slot,
+              board: msg.state?.board,
+            })
+          }
+        }
+        return
+      }
+
       const peer = rooms.getPeer(ws)
       if (peer) send(peer, { type: 'PEER_STATE', state: msg.state })
       return
     }
 
     if (msg.type === 'EVENT') {
+      const room = rooms.getRoom(ws)
+      if (room?.mode === 'coop') {
+        const host = rooms.getHost(ws)
+        if (host && host !== ws) send(host, { type: 'PEER_EVENT', slot: msg.slot, event: msg.event })
+        return
+      }
       const peer = rooms.getPeer(ws)
       if (peer) send(peer, { type: 'PEER_EVENT', event: msg.event })
     }
@@ -128,8 +172,17 @@ wss.on('connection', (ws) => {
 
   ws.on('close', () => {
     const result = rooms.removeClient(ws)
-    if (result?.peer) {
-      send(result.peer, { type: 'PLAYER_LEFT', code: result.code })
+    if (!result?.room) return
+
+    if (result.room.mode === 'coop' && !result.room.started) {
+      for (const { ws: target, payload } of rooms.broadcastLobby(result.room)) {
+        send(target, { type: 'LOBBY_UPDATE', ...payload })
+      }
+      return
+    }
+
+    for (const peerWs of result.remaining) {
+      send(peerWs, { type: 'PLAYER_LEFT', code: result.code })
     }
   })
 })

@@ -23,6 +23,8 @@ export const BOARD = {
 export const BALL = {
   radius: 0.55,
   spawnHeight: 4, // how high above the deck the ball hovers before dropping
+  jumpHeight: 2.8, // peak height on mouse click
+  jumpCooldown: 0.35, // seconds between jumps
   friction: 0.8,
   restitution: 0.2,
   linearDamping: 0.25,
@@ -30,6 +32,8 @@ export const BALL = {
   metalness: 0, // matte finish
   roughness: 0.96,
 }
+
+export const ballJumpVelocity = () => Math.sqrt(2 * 9.81 * BALL.jumpHeight)
 
 // Light but visibly tinted ball colors per level — NIZHEN text is always black.
 export const BALL_LEVEL_PALETTE = [
@@ -142,4 +146,8 @@ export const COLORS = {
   hudDanger: '#f87171',
   coopBoardA: { tileA: '#7c3aed', tileB: '#6d28d9', frame: '#6d28d9' },
   coopBoardB: { tileA: '#0e7490', tileB: '#155e75', frame: '#14b8a6' },
+  coopBoardC: { tileA: '#b45309', tileB: '#92400e', frame: '#f59e0b' },
+  coopBoardD: { tileA: '#be185d', tileB: '#9d174d', frame: '#ec4899' },
 }
+
+export const COOP_BOARD_THEMES = ['a', 'b', 'c', 'd']

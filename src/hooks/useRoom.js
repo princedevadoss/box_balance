@@ -3,19 +3,30 @@ import { connectSocket } from '../net/socket.js'
 import { MSG } from '../net/protocol.js'
 import { sanitizeName } from '../net/names.js'
 
+function peerNameFromPlayers(players, slot) {
+  const peer = players?.find((p) => p.slot !== slot)
+  return peer?.name ?? ''
+}
+
 // Manages WebSocket lobby: create/join room, match, relay peer state.
 export function useRoom() {
   const [phase, setPhase] = useState('idle')
   const [code, setCode] = useState('')
   const [seed, setSeed] = useState(0)
   const [role, setRole] = useState(null)
+  const [slot, setSlot] = useState(0)
   const [mode, setMode] = useState('versus')
+  const [players, setPlayers] = useState([])
   const [playerName, setPlayerName] = useState('')
   const [peerName, setPeerName] = useState('')
   const [peerState, setPeerState] = useState(null)
   const [error, setError] = useState('')
   const socketRef = useRef(null)
   const playerNameRef = useRef('')
+  const slotRef = useRef(0)
+  const peerBoardsRef = useRef({})
+  const peerEventRef = useRef(null)
+  const peerStateRef = useRef(null)
 
   const cleanup = useCallback(() => {
     socketRef.current?.close()
@@ -24,43 +35,62 @@ export function useRoom() {
 
   useEffect(() => () => cleanup(), [cleanup])
 
-  const applyNames = useCallback((player, peer) => {
-    if (player) {
-      playerNameRef.current = player
-      setPlayerName(player)
+  const applyLobby = useCallback((msg) => {
+    setCode(msg.code)
+    setSeed(msg.seed)
+    setRole(msg.role)
+    if (msg.slot != null) {
+      slotRef.current = msg.slot
+      setSlot(msg.slot)
     }
-    if (peer) setPeerName(peer)
+    if (msg.mode) setMode(msg.mode)
+    if (msg.playerName) {
+      playerNameRef.current = msg.playerName
+      setPlayerName(msg.playerName)
+    }
+    if (msg.players) {
+      setPlayers(msg.players)
+      if (msg.mode === 'versus') setPeerName(peerNameFromPlayers(msg.players, msg.slot ?? 0))
+    }
   }, [])
 
   const handleMessage = useCallback(
     (msg) => {
       if (msg.type === MSG.CREATED || msg.type === MSG.JOINED) {
-        setCode(msg.code)
-        setSeed(msg.seed)
-        setRole(msg.role)
-        if (msg.mode) setMode(msg.mode)
-        applyNames(msg.playerName, msg.peerName)
+        applyLobby(msg)
+        setPhase('waiting')
+        setError('')
+        return
+      }
+      if (msg.type === MSG.LOBBY_UPDATE) {
+        applyLobby(msg)
         setPhase('waiting')
         setError('')
         return
       }
       if (msg.type === MSG.MATCHED) {
-        setCode(msg.code)
-        setSeed(msg.seed)
-        setRole(msg.role)
-        if (msg.mode) setMode(msg.mode)
-        applyNames(msg.playerName, msg.peerName)
+        applyLobby(msg)
         setPhase('matched')
         return
       }
       if (msg.type === MSG.PEER_STATE) {
+        peerStateRef.current = { state: msg.state, receivedAt: performance.now() }
         setPeerState(msg.state)
         if (msg.state?.name) setPeerName(msg.state.name)
+        return
+      }
+      if (msg.type === MSG.PEER_BOARD) {
+        peerBoardsRef.current[msg.slot] = msg.board
+        return
+      }
+      if (msg.type === MSG.PEER_EVENT) {
+        peerEventRef.current = { slot: msg.slot, event: msg.event, ts: Date.now() }
         return
       }
       if (msg.type === MSG.PLAYER_LEFT) {
         setPhase('left')
         setPeerState(null)
+        peerStateRef.current = null
         return
       }
       if (msg.type === MSG.ERROR) {
@@ -68,7 +98,7 @@ export function useRoom() {
         setPhase('error')
       }
     },
-    [applyNames]
+    [applyLobby]
   )
 
   const openSocket = useCallback(() => {
@@ -76,6 +106,9 @@ export function useRoom() {
     setPhase('connecting')
     setError('')
     setPeerState(null)
+    peerStateRef.current = null
+    peerBoardsRef.current = {}
+    peerEventRef.current = null
 
     const socket = connectSocket({
       onOpen: () => {},
@@ -123,10 +156,22 @@ export function useRoom() {
     [openSocket]
   )
 
+  const sendStart = useCallback(() => {
+    socketRef.current?.send({ type: MSG.START })
+  }, [])
+
   const sendState = useCallback((state) => {
     socketRef.current?.send({
       type: MSG.STATE,
       state: { ...state, name: playerNameRef.current },
+    })
+  }, [])
+
+  const sendEvent = useCallback((event) => {
+    socketRef.current?.send({
+      type: MSG.EVENT,
+      slot: slotRef.current,
+      event,
     })
   }, [])
 
@@ -136,11 +181,17 @@ export function useRoom() {
     setCode('')
     setSeed(0)
     setRole(null)
+    setSlot(0)
+    slotRef.current = 0
     setMode('versus')
+    setPlayers([])
     setPlayerName('')
     setPeerName('')
     playerNameRef.current = ''
     setPeerState(null)
+    peerStateRef.current = null
+    peerBoardsRef.current = {}
+    peerEventRef.current = null
     setError('')
   }, [cleanup])
 
@@ -149,19 +200,29 @@ export function useRoom() {
     setError('')
   }, [])
 
+  const isHost = role === 'host'
+
   return {
     phase,
     code,
     seed,
     role,
+    slot,
     mode,
+    players,
     playerName,
     peerName,
     peerState,
+    peerStateRef,
+    peerBoardsRef,
+    peerEventRef,
     error,
+    isHost,
     createRoom,
     joinRoom,
+    sendStart,
     sendState,
+    sendEvent,
     disconnect,
     resetError,
   }

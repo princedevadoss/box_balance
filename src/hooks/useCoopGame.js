@@ -3,14 +3,14 @@ import { generateCoopLevel } from '../level'
 import { GAME } from '../config'
 import { initAudio, playClick, playWin, playFail, playHeart, playLava } from '../audio'
 
-export function useCoopGame({ roomSeed = null, authoritative = true } = {}) {
+export function useCoopGame({ roomSeed = null, playerCount = 2, authoritative = true } = {}) {
   const [status, setStatus] = useState('ready')
   const [countdown, setCountdown] = useState(GAME.countdown)
   const [level, setLevel] = useState(1)
   const [score, setScore] = useState(0)
   const [lives, setLives] = useState(GAME.startLives)
   const [timeLeft, setTimeLeft] = useState(GAME.levelTime)
-  const [data, setData] = useState(() => generateCoopLevel(1, roomSeed))
+  const [data, setData] = useState(() => generateCoopLevel(1, roomSeed, playerCount))
   const [runId, setRunId] = useState(0)
   const [heartTaken, setHeartTaken] = useState(false)
   const [flash, setFlash] = useState('')
@@ -78,12 +78,17 @@ export function useCoopGame({ roomSeed = null, authoritative = true } = {}) {
     return () => clearTimeout(id)
   }, [flash])
 
+  useEffect(() => {
+    if (status !== 'ready') return
+    setData(generateCoopLevel(1, roomSeed, playerCount))
+  }, [playerCount, roomSeed, status])
+
   const loadLevel = useCallback((lvl, resetHeart = true) => {
-    setData(generateCoopLevel(lvl, roomSeed))
+    setData(generateCoopLevel(lvl, roomSeed, playerCount))
     setTimeLeft(GAME.levelTime)
     if (resetHeart) setHeartTaken(false)
     setRunId((r) => r + 1)
-  }, [roomSeed])
+  }, [roomSeed, playerCount])
 
   const beginCountdown = useCallback((lvl) => {
     loadLevel(lvl)
@@ -179,7 +184,7 @@ export function useCoopGame({ roomSeed = null, authoritative = true } = {}) {
       if (peer.runId != null && peer.runId !== runIdRef.current) {
         runIdRef.current = peer.runId
         setRunId(peer.runId)
-        setData(generateCoopLevel(peer.level ?? levelRef.current, roomSeed))
+        setData(generateCoopLevel(peer.level ?? levelRef.current, roomSeed, playerCount))
         if (peer.heartTaken != null) setHeartTaken(peer.heartTaken)
         if (peer.timeLeft != null) setTimeLeft(peer.timeLeft)
       }
@@ -194,7 +199,7 @@ export function useCoopGame({ roomSeed = null, authoritative = true } = {}) {
       if (peer.failReason != null) setFailReason(peer.failReason)
       if (peer.flash) setFlash(peer.flash)
     },
-    [roomSeed]
+    [roomSeed, playerCount]
   )
 
   return {

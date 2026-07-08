@@ -9,20 +9,23 @@ export function CoopHud({
   countdown,
   flash,
   failReason,
-  p1Label,
-  p2Label,
+  players,
+  slot,
+  playerLabels,
+  themeLabels,
   roomCode,
   resume,
   exitToMenu,
 }) {
   const heartsDisplay = '♥'.repeat(Math.min(lives, 5)) + (lives > 5 ? ` ×${lives}` : '')
+  const boards = players.length ? players : playerLabels.map((name, i) => ({ slot: i, name }))
 
   return (
     <>
       <div className="coop-hud">
         <div className="coop-topbar">
           <span className="room-code">Room {roomCode}</span>
-          <span className="coop-mode-tag">Co-op</span>
+          <span className="coop-mode-tag">Co-op · {boards.length} players</span>
         </div>
         <div className="coop-stats">
           <div className="coop-stat">
@@ -47,13 +50,23 @@ export function CoopHud({
           </div>
         </div>
         <div className="coop-player-strip">
-          <span className="coop-player coop-player--p1">
-            <strong>{p1Label}</strong> controls left purple board
-          </span>
-          <span className="coop-player coop-player--p2">
-            <strong>{p2Label}</strong> controls right teal board and pocket
-          </span>
+          {boards.map((p, i) => {
+            const name = p.name ?? playerLabels[i] ?? `Player ${i + 1}`
+            const themeKey = ['a', 'b', 'c', 'd'][p.slot ?? i]
+            const color = themeLabels[themeKey] ?? 'board'
+            const you = (p.slot ?? i) === slot
+            return (
+              <span
+                key={p.slot ?? i}
+                className={`coop-player ${you ? 'coop-player--you' : ''}`}
+              >
+                <strong>{name}</strong>
+                {you ? ' · you' : ''} · {color} board
+              </span>
+            )
+          })}
         </div>
+        <p className="coop-jump-hint">Click to jump · move mouse to tilt your board</p>
       </div>
 
       {flash && (status === 'playing' || status === 'countdown') && (
@@ -63,7 +76,7 @@ export function CoopHud({
       {status === 'countdown' && (
         <div className="countdown">
           <div className="count-num">{countdown > 0 ? countdown : 'GO!'}</div>
-          <div className="count-sub">Balance both boards — the ball drops in…</div>
+          <div className="count-sub">Work together — the ball drops in…</div>
         </div>
       )}
 

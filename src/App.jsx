@@ -6,6 +6,7 @@ import {
   ModeLobbyMenu,
   CreateRoomScreen,
   JoinRoomScreen,
+  CoopLobbyScreen,
 } from './components/menus'
 import { SoloGame } from './components/SoloGame'
 import { MultiplayerGame } from './components/MultiplayerGame'
@@ -16,8 +17,15 @@ export default function App() {
   const [lobbyMode, setLobbyMode] = useState('versus')
   const room = useRoom()
 
+  const inCoopLobby =
+    room.mode === 'coop' &&
+    room.phase === 'waiting' &&
+    room.code &&
+    (screen === 'multi-create' || screen === 'multi-join')
+
   useEffect(() => {
-    if (room.phase === 'matched' && (screen === 'multi-create' || screen === 'multi-join')) {
+    if (room.phase !== 'matched') return
+    if (screen === 'multi-create' || screen === 'multi-join') {
       setScreen('multi-play')
     }
   }, [room.phase, screen])
@@ -35,6 +43,23 @@ export default function App() {
       return <CoopGame room={room} onExit={exit} />
     }
     return <MultiplayerGame room={room} onExit={exit} />
+  }
+
+  if (inCoopLobby) {
+    return (
+      <CoopLobbyScreen
+        code={room.code}
+        playerName={room.playerName}
+        players={room.players}
+        isHost={room.isHost}
+        error={room.phase === 'error' ? room.error : ''}
+        onStart={room.sendStart}
+        onBack={() => {
+          room.disconnect()
+          setScreen('multi-lobby')
+        }}
+      />
+    )
   }
 
   return (
@@ -87,7 +112,7 @@ export default function App() {
         <JoinRoomScreen
           mode={lobbyMode}
           error={room.phase === 'error' ? room.error : ''}
-          joining={room.phase === 'connecting' || room.phase === 'waiting'}
+          joining={room.phase === 'connecting'}
           onJoin={(code, name) => room.joinRoom(code, name, lobbyMode)}
           onBack={() => {
             room.disconnect()

@@ -6,7 +6,6 @@ import { GAME, BALL, HAZARD, airLaunchSpeed } from '../config'
 import { playLaunch } from '../audio'
 
 const _conj = new THREE.Quaternion()
-const _offset = new THREE.Vector3()
 const _local = new THREE.Vector3()
 
 function ballBoardLocal(ballRef, boardRef, out) {
@@ -20,11 +19,9 @@ function ballBoardLocal(ballRef, boardRef, out) {
   return out.set(t.x - bt.x, t.y - bt.y, t.z - bt.z).applyQuaternion(_conj)
 }
 
-// One shared ball — spawn on board 1, score in the hole on board 2.
 export function CoopDetector({
   data,
-  board1Ref,
-  board2Ref,
+  boardRefs,
   ballRef,
   status,
   heartTaken,
@@ -39,6 +36,7 @@ export function CoopDetector({
   const boostCd = useRef(0)
   const ended = useRef(false)
   const launchSpeed = airLaunchSpeed(data.level)
+  const boards = data.boards ?? []
 
   useEffect(() => {
     ended.current = false
@@ -46,12 +44,19 @@ export function CoopDetector({
     heartFired.current = false
   }, [runId])
 
-  const boardRefFor = (board) => (board.boardIndex === 1 ? board1Ref : board2Ref)
+  const boardRefFor = (board) => boardRefs.current[board.boardIndex]
 
   const pickActiveBoard = (worldX) => {
-    const d1 = Math.abs(worldX - data.board1.position[0])
-    const d2 = Math.abs(worldX - data.board2.position[0])
-    return d1 <= d2 ? data.board1 : data.board2
+    let best = boards[0]
+    let bestD = Infinity
+    for (const b of boards) {
+      const d = Math.abs(worldX - b.position[0])
+      if (d < bestD) {
+        bestD = d
+        best = b
+      }
+    }
+    return best
   }
 
   useFrame((_, delta) => {
@@ -63,12 +68,11 @@ export function CoopDetector({
     const spawnBoard = data.ball.spawnBoard
     const goalBoard = data.ball.goalBoard
     const spawnRef = boardRefFor(spawnBoard)
-    const goalRef = boardRefFor(goalBoard)
     const t = ball.translation()
 
     if (!armed.current) {
       const spawnLocal = ballBoardLocal(ballRef, spawnRef, _local)
-      if (spawnLocal && spawnLocal.y > -0.35 && spawnLocal.y < 3 && t.y > GAME.fallY) {
+      if (spawnLocal && spawnLocal.y > -0.35 && spawnLocal.y <= BALL.spawnHeight + 1 && t.y > GAME.fallY) {
         armed.current = true
       }
       return
@@ -121,23 +125,30 @@ export function CoopDetector({
       }
     }
 
-    const goalLocal = ballBoardLocal(ballRef, goalRef, _offset)
-    if (!goalLocal) return
-    if (goalLocal.y > -0.4 && t.y > GAME.fallY) return
-
-    const [holeX, holeZ] = boardHoleLocal(goalBoard)
-    const inHole =
-      Math.abs(goalLocal.x - holeX) < goalBoard.cell * 0.6 &&
-      Math.abs(goalLocal.z - holeZ) < goalBoard.cell * 0.6
-
-    if (inHole) {
+    if (t.y <= GAME.fallY) {
       ended.current = true
-      onWin()
+      onFail('fell')
       return
     }
 
+    if (activeBoard.boardIndex !== goalBoard.boardIndex) {
+      if (local.y <= -0.4) {
+        ended.current = true
+        onFail('fell')
+      }
+      return
+    }
+
+    if (local.y > -0.4) return
+
+    const [holeX, holeZ] = boardHoleLocal(goalBoard)
+    const inHole =
+      Math.abs(local.x - holeX) < goalBoard.cell * 0.6 &&
+      Math.abs(local.z - holeZ) < goalBoard.cell * 0.6
+
     ended.current = true
-    onFail('fell')
+    if (inHole) onWin()
+    else onFail('fell')
   })
 
   return null

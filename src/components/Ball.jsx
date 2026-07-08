@@ -6,19 +6,23 @@ import { BALL, COLORS } from '../config'
 import { useNizhenTexture } from '../textures'
 import { setRollSpeed, stopRoll } from '../audio'
 
-const _targetPos = new THREE.Vector3()
 const _targetQuat = new THREE.Quaternion()
-const _smoothPos = new THREE.Vector3()
-const _smoothQuat = new THREE.Quaternion()
 const _spinAxis = new THREE.Vector3()
 const _spinDelta = new THREE.Quaternion()
+const MAX_EXTRAPOLATE_S = 0.12
 
-export function Ball({ bodyRef, status, spawn, level = 1, tint = 'primary', networkBallRef = null }) {
+function extrapolateSeconds(receivedAt) {
+  if (receivedAt == null) return 0
+  return Math.min(Math.max(0, (performance.now() - receivedAt) / 1000), MAX_EXTRAPOLATE_S)
+}
+
+export function Ball({ bodyRef, status, spawn, level = 1, runId = 0, tint = 'primary', networkBallRef = null }) {
   const texture = useNizhenTexture(level)
   const frozen = status === 'countdown'
   const driven = networkBallRef != null
   const [x, y, z] = spawn
-  const smoothReady = useRef(false)
+  const lastRunId = useRef(runId)
+  const lastNetworkRunId = useRef(null)
 
   useEffect(() => {
     const b = bodyRef.current
@@ -26,42 +30,51 @@ export function Ball({ bodyRef, status, spawn, level = 1, tint = 'primary', netw
   }, [frozen, driven, bodyRef])
 
   useEffect(() => {
-    smoothReady.current = false
-  }, [spawn, level])
+    lastNetworkRunId.current = null
+  }, [spawn, level, status, runId])
 
-  useFrame((_, delta) => {
+  useEffect(() => {
+    if (lastRunId.current === runId) return
+    lastRunId.current = runId
+    const b = bodyRef.current
+    if (!b) return
+    b.setTranslation({ x, y, z }, true)
+    b.setLinvel({ x: 0, y: 0, z: 0 }, true)
+    b.setAngvel({ x: 0, y: 0, z: 0 }, true)
+    if (networkBallRef) networkBallRef.current = null
+  }, [runId, x, y, z, bodyRef, networkBallRef])
+
+  useFrame(() => {
     const b = bodyRef.current
     if (!b) return
 
     const networkBall = networkBallRef?.current
+    if (driven && !networkBall?.pos) {
+      b.setTranslation({ x, y, z }, true)
+      b.setLinvel({ x: 0, y: 0, z: 0 }, true)
+      b.setAngvel({ x: 0, y: 0, z: 0 }, true)
+      stopRoll()
+      return
+    }
+
     if (networkBall?.pos) {
+      const networkRunId = networkBall.runId ?? runId
+      if (lastNetworkRunId.current != null && networkRunId !== lastNetworkRunId.current) {
+        lastNetworkRunId.current = networkRunId
+      } else if (lastNetworkRunId.current == null) {
+        lastNetworkRunId.current = networkRunId
+      }
+
       const [px, py, pz] = networkBall.pos
-      _targetPos.set(px, py, pz)
-
       const vel = networkBall.vel
-      if (vel && status === 'playing' && !frozen) {
-        _targetPos.x += vel[0] * delta
-        _targetPos.y += vel[1] * delta
-        _targetPos.z += vel[2] * delta
-      }
+      const extrapolate = status === 'playing' && !frozen
+      const elapsed = extrapolate ? extrapolateSeconds(networkBall.receivedAt) : 0
 
-      if (!smoothReady.current) {
-        _smoothPos.copy(_targetPos)
-        if (networkBall.rot) {
-          _smoothQuat.set(
-            networkBall.rot[0],
-            networkBall.rot[1],
-            networkBall.rot[2],
-            networkBall.rot[3]
-          )
-        }
-        smoothReady.current = true
-      } else {
-        const blend = 1 - Math.pow(0.0008, delta)
-        _smoothPos.lerp(_targetPos, blend)
-      }
+      const tx = vel && extrapolate ? px + vel[0] * elapsed : px
+      const ty = vel && extrapolate ? py + vel[1] * elapsed : py
+      const tz = vel && extrapolate ? pz + vel[2] * elapsed : pz
 
-      b.setTranslation({ x: _smoothPos.x, y: _smoothPos.y, z: _smoothPos.z }, true)
+      b.setTranslation({ x: tx, y: ty, z: tz }, true)
 
       if (networkBall.rot) {
         _targetQuat.set(
@@ -71,17 +84,18 @@ export function Ball({ bodyRef, status, spawn, level = 1, tint = 'primary', netw
           networkBall.rot[3]
         )
         const ang = networkBall.angVel
-        if (ang && status === 'playing' && !frozen) {
+        if (ang && extrapolate) {
           const speed = Math.hypot(ang[0], ang[1], ang[2])
           if (speed > 0.001) {
             _spinAxis.set(ang[0], ang[1], ang[2]).normalize()
-            _spinDelta.setFromAxisAngle(_spinAxis, speed * delta)
+            _spinDelta.setFromAxisAngle(_spinAxis, speed * elapsed)
             _targetQuat.multiply(_spinDelta)
           }
         }
-        const rotBlend = 1 - Math.pow(0.0008, delta)
-        _smoothQuat.slerp(_targetQuat, rotBlend)
-        b.setRotation({ x: _smoothQuat.x, y: _smoothQuat.y, z: _smoothQuat.z, w: _smoothQuat.w }, true)
+        b.setRotation(
+          { x: _targetQuat.x, y: _targetQuat.y, z: _targetQuat.z, w: _targetQuat.w },
+          true
+        )
       }
 
       if (frozen || status !== 'playing') {

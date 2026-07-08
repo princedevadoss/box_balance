@@ -1,25 +1,37 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useCallback } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { CAMERA, COLORS } from '../config'
 import { useCoopGame } from '../hooks/useCoopGame'
 import { CoopScene } from './CoopScene'
 import { CoopHud } from './CoopHud'
 
+const THEME_LABELS = {
+  a: 'purple',
+  b: 'teal',
+  c: 'amber',
+  d: 'pink',
+}
+
 export function CoopGame({ room, onExit }) {
-  const { code, seed, peerState, sendState, disconnect, phase, playerName, peerName, role } = room
-  const isHost = role === 'host'
-  const game = useCoopGame({ roomSeed: seed, authoritative: isHost })
-  const peerStateRef = useRef(null)
+  const {
+    code,
+    seed,
+    slot,
+    players,
+    peerState,
+    peerStateRef,
+    peerBoardsRef,
+    peerEventRef,
+    sendState,
+    sendEvent,
+    disconnect,
+    phase,
+    playerName,
+    isHost,
+  } = room
 
-  useEffect(() => {
-    peerStateRef.current = peerState
-  }, [peerState])
-
-  const hostName = role === 'host' ? playerName : peerName
-  const guestName = role === 'host' ? peerName : playerName
-  const p1Label = hostName || 'Player 1'
-  const p2Label = guestName || 'Player 2'
-
+  const playerCount = Math.max(2, players.length || 2)
+  const game = useCoopGame({ roomSeed: seed, playerCount, authoritative: isHost })
   useEffect(() => {
     if (phase === 'matched' && isHost) game.start()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -31,13 +43,21 @@ export function CoopGame({ room, onExit }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [peerState, isHost])
 
+  const handleJump = useCallback(() => {
+    sendEvent({ type: 'jump' })
+  }, [sendEvent])
+
   const handleExit = () => {
     disconnect()
     game.exitToMenu()
     onExit()
   }
 
-  const opponentLeft = phase === 'left'
+  const playerLabels = players.length
+    ? players.map((p) => p.name || `Player ${p.slot + 1}`)
+    : ['Player 1', 'Player 2']
+
+  const teammateLeft = phase === 'left'
 
   return (
     <>
@@ -50,8 +70,10 @@ export function CoopGame({ room, onExit }) {
         countdown={game.countdown}
         flash={game.flash}
         failReason={game.failReason}
-        p1Label={p1Label}
-        p2Label={p2Label}
+        players={players}
+        slot={slot}
+        playerLabels={playerLabels}
+        themeLabels={THEME_LABELS}
         roomCode={code}
         resume={game.resume}
         exitToMenu={handleExit}
@@ -64,20 +86,25 @@ export function CoopGame({ room, onExit }) {
           status={game.status}
           runId={game.runId}
           heartTaken={game.heartTaken}
-          role={role}
+          slot={slot}
+          isHost={isHost}
+          peerState={peerState}
           peerStateRef={peerStateRef}
+          peerBoardsRef={peerBoardsRef}
+          peerEventRef={peerEventRef}
           onWin={game.handleWin}
           onFail={game.handleFail}
           onHeart={game.handleHeart}
           onSend={sendState}
+          onJumpRequest={handleJump}
           getSnapshot={game.getSnapshot}
         />
       </Canvas>
 
-      {opponentLeft && game.status !== 'over' && (
+      {teammateLeft && game.status !== 'over' && (
         <div className="overlay">
-          <h1>{p2Label} left</h1>
-          <p>Your teammate disconnected.</p>
+          <h1>A teammate left</h1>
+          <p>Someone disconnected from the room.</p>
           <button onClick={handleExit}>Back to Menu</button>
         </div>
       )}

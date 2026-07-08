@@ -33,6 +33,10 @@ export function Board({
   const palette =
     theme === 'b'
       ? COLORS.coopBoardB
+      : theme === 'c'
+      ? COLORS.coopBoardC
+      : theme === 'd'
+      ? COLORS.coopBoardD
       : theme === 'a'
       ? COLORS.coopBoardA
       : { tileA: COLORS.tileA, tileB: COLORS.tileB, frame: COLORS.pocketFrame }

@@ -49,7 +49,7 @@ export function ModeLobbyMenu({ mode, onCreate, onJoin, onBack }) {
       <h1>{isCoop ? 'Co-op' : 'Versus'}</h1>
       <p>
         {isCoop
-          ? 'One shared ball on two joined boards — each player tilts their side to roll it into the teammate\'s pocket.'
+          ? 'Up to 4 players share one ball across joined boards. The host starts when everyone is ready.'
           : 'Parallel race on identical boards. Highest score wins when a player is eliminated.'}
       </p>
       <div className="menu-actions">
@@ -110,13 +110,67 @@ export function CreateRoomScreen({ mode, code, playerName, error, onCreate, onBa
             Hi <strong>{playerName}</strong> — share this code:
           </p>
           <div className="room-code-display">{code}</div>
-          <p className="menu-waiting">Waiting for another player to join…</p>
+          <p className="menu-waiting">
+            {isCoop ? 'Waiting for teammates in the lobby…' : 'Waiting for another player to join…'}
+          </p>
         </>
       ) : (
         <p className="menu-waiting">Connecting to server…</p>
       )}
       <button className="secondary" onClick={onBack}>
         Cancel
+      </button>
+    </div>
+  )
+}
+
+export function CoopLobbyScreen({
+  code,
+  playerName,
+  players,
+  isHost,
+  error,
+  onStart,
+  onBack,
+}) {
+  const canStart = isHost && players.length >= 2
+
+  return (
+    <div className="overlay menu-overlay">
+      <h1>Co-op Lobby</h1>
+      {error && <p className="menu-error">{error}</p>}
+      <p>
+        Room <strong>{code}</strong> · You are <strong>{playerName}</strong>
+        {isHost ? ' (host)' : ''}
+      </p>
+
+      <div className="coop-lobby-board">
+        <div className="coop-lobby-board__title">Players</div>
+        <ol className="coop-lobby-list">
+          {players.map((p) => (
+            <li key={p.slot} className={p.isHost ? 'coop-lobby-list__host' : ''}>
+              <span className="coop-lobby-rank">#{p.slot + 1}</span>
+              <span className="coop-lobby-name">{p.name}</span>
+              {p.isHost && <span className="coop-lobby-tag">Host</span>}
+            </li>
+          ))}
+        </ol>
+        <p className="coop-lobby-cap">{players.length} / 4 players</p>
+      </div>
+
+      {isHost ? (
+        <>
+          <button onClick={onStart} disabled={!canStart}>
+            {canStart ? 'Start Game' : 'Need at least 2 players'}
+          </button>
+          <p className="menu-footnote">Only you can start the match.</p>
+        </>
+      ) : (
+        <p className="menu-waiting">Waiting for the host to start…</p>
+      )}
+
+      <button className="link-btn" onClick={onBack}>
+        Leave Lobby
       </button>
     </div>
   )
