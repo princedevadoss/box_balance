@@ -16,6 +16,7 @@ export function Board({
   bodyRef,
   status,
   heartTaken,
+  patchActive = false,
   visualOnly = false,
   rotationRef,
   position = [0, 0, 0],
@@ -104,6 +105,7 @@ export function Board({
       const halfY = (thickness + h) / 2
       const posY = h / 2
       const checker = (r + c) % 2 === 0
+      const patchedLava = patchActive && t.kind === 'lava'
 
       let color = checker ? palette.tileA : palette.tileB
       let emissive = '#000000'
@@ -113,6 +115,10 @@ export function Board({
         color = COLORS.airTile
         emissive = COLORS.airEmissive
         emissiveIntensity = 0.5
+      } else if (patchedLava) {
+        color = COLORS.patchTile
+        emissive = COLORS.patchTileEmissive
+        emissiveIntensity = 0.45
       } else if (t.kind === 'lava') {
         color = COLORS.lavaTile
         emissive = COLORS.lavaEmissive
@@ -146,8 +152,14 @@ export function Board({
           {t.kind === 'air' && (
             <AirEffect x={x} z={z} cell={cell} thickness={thickness} intensity={airIntensity} />
           )}
-          {t.kind === 'lava' && (
+          {t.kind === 'lava' && !patchedLava && (
             <LavaEffect x={x} z={z} cell={cell} thickness={thickness} intensity={lavaIntensity} />
+          )}
+          {patchedLava && (
+            <mesh position={[x, thickness / 2 + 0.03, z]} rotation={[-Math.PI / 2, 0, 0]}>
+              <planeGeometry args={[cell * 0.55, cell * 0.35]} />
+              <meshBasicMaterial color={COLORS.patchCross} transparent opacity={0.85} depthWrite={false} />
+            </mesh>
           )}
           {t.kind === 'boost' && (
             <group position={[x, thickness / 2 + 0.02, z]} rotation={[0, boostAngle(t.dx, t.dz), 0]}>
@@ -162,18 +174,49 @@ export function Board({
     }
   }
 
-  // Danger-gap glow (missing tiles that are NOT the goal).
+  // Danger-gap glow (missing tiles that are NOT the goal). Patched gaps become solid tiles.
   const dangers = []
+  const gapPatches = []
   for (let r = 0; r < gridN; r++) {
     for (let c = 0; c < gridN; c++) {
       if (cells[r][c].kind !== 'gap') continue
       const [x, z] = cellCenter(r, c, gridN, cell)
-      dangers.push(
-        <mesh key={`d${r}-${c}`} position={[x, -0.6, z]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[cell * 0.9, cell * 0.9]} />
-          <meshBasicMaterial color={COLORS.danger} transparent opacity={0.35} side={THREE.DoubleSide} />
-        </mesh>
-      )
+      if (patchActive) {
+        const halfY = thickness / 2
+        gapPatches.push(
+          <group key={`gp${r}-${c}`}>
+            {!visualOnly && (
+              <CuboidCollider
+                args={[cell * TILE.collider, halfY, cell * TILE.collider]}
+                position={[x, 0, z]}
+                friction={TILE.friction}
+                restitution={TILE.restitution}
+              />
+            )}
+            <mesh position={[x, 0, z]} castShadow receiveShadow>
+              <boxGeometry args={[cell * TILE.visible, thickness, cell * TILE.visible]} />
+              <meshStandardMaterial
+                color={COLORS.patchTile}
+                emissive={COLORS.patchTileEmissive}
+                emissiveIntensity={0.35}
+                metalness={0.2}
+                roughness={0.55}
+              />
+            </mesh>
+            <mesh position={[x, thickness / 2 + 0.03, z]} rotation={[-Math.PI / 2, 0, 0]}>
+              <planeGeometry args={[cell * 0.5, cell * 0.32]} />
+              <meshBasicMaterial color={COLORS.patchCross} transparent opacity={0.9} depthWrite={false} />
+            </mesh>
+          </group>
+        )
+      } else {
+        dangers.push(
+          <mesh key={`d${r}-${c}`} position={[x, -0.6, z]} rotation={[-Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[cell * 0.9, cell * 0.9]} />
+            <meshBasicMaterial color={COLORS.danger} transparent opacity={0.35} side={THREE.DoubleSide} />
+          </mesh>
+        )
+      }
     }
   }
 
@@ -184,6 +227,7 @@ export function Board({
     <>
       {tiles}
       {dangers}
+      {gapPatches}
 
       {movers &&
         movers.map((m, i) => (

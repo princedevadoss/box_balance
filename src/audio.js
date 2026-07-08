@@ -135,3 +135,9 @@ export const playLaunch = () =>
 
 export const playLava = () =>
   noiseBurst({ dur: 0.5, vol: 0.22, type: 'lowpass', freqStart: 1400, freqEnd: 200, Q: 1 })
+
+export const playPatch = () => {
+  blip({ freq: 520, type: 'sine', dur: 0.1, vol: 0.18 })
+  setTimeout(() => blip({ freq: 780, type: 'triangle', dur: 0.12, vol: 0.16 }), 70)
+  setTimeout(() => blip({ freq: 1040, type: 'sine', dur: 0.14, vol: 0.14 }), 140)
+}

@@ -75,7 +75,7 @@ export function StateBroadcaster({
 
     const physics = buildPhysics(board, ball, includeBall)
     const snapshot = getSnapshot(physics)
-    const metaKey = `${snapshot.runId}|${snapshot.status}|${snapshot.level}|${snapshot.lives}|${snapshot.score}|${snapshot.timeLeft}|${snapshot.heartTaken}|${snapshot.countdown}|${snapshot.failReason}|${snapshot.flash}`
+    const metaKey = `${snapshot.runId}|${snapshot.status}|${snapshot.level}|${snapshot.lives}|${snapshot.score}|${snapshot.timeLeft}|${snapshot.heartTaken}|${snapshot.countdown}|${snapshot.failReason}|${snapshot.flash}|${snapshot.patchUntil ?? 0}|${snapshot.patchPickup ? `${snapshot.patchPickup.boardIndex}:${snapshot.patchPickup.r},${snapshot.patchPickup.c}` : ''}`
     const metaChanged = metaKey !== metaStamp.current
 
     if (metaChanged && forceSendOnMeta && includeBall) {

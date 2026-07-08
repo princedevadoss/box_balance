@@ -7,6 +7,8 @@ import { generateLevel } from '../level'
 import { useNizhenTexture } from '../textures'
 import { Board } from './Board'
 import { SceneLighting } from './SceneLighting'
+import { PatchPickup } from './PatchPickup'
+import { isPatchActive, boardForPickup, patchPickupWorldPosition } from '../patchPowerUp'
 
 function RemoteCameraRig({ extent }) {
   const target = useRef(new THREE.Vector3())
@@ -75,6 +77,12 @@ export function RemoteScene({ peerState, roomSeed }) {
 
   const status = peerState?.status ?? 'countdown'
   const heartTaken = peerState?.heartTaken ?? false
+  const patchActive = isPatchActive(peerState?.patchUntil)
+  const patchPickup = peerState?.patchPickup ?? null
+  const patchPos =
+    patchPickup != null
+      ? patchPickupWorldPosition(boardForPickup(data, patchPickup), patchPickup)
+      : null
 
   return (
     <>
@@ -84,9 +92,11 @@ export function RemoteScene({ peerState, roomSeed }) {
         data={data}
         status={status}
         heartTaken={heartTaken}
+        patchActive={patchActive}
         visualOnly
         rotationRef={rotationRef}
       />
+      {patchPos && <PatchPickup position={patchPos} />}
       <RemoteBall positionRef={ballRef} level={level} />
       <ContactShadows position={[0, -0.65, 0]} opacity={0.35} scale={extent * 1.6} blur={2.5} far={12} />
       {!peerState && (

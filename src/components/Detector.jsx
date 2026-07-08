@@ -7,7 +7,17 @@ import { playLaunch } from '../audio'
 
 // Watches the ball each frame: launches it off air tiles, boosts it across pads,
 // catches heart pickups, and decides win (goal pocket) / life-loss (lava, fell off).
-export function Detector({ data, boardRef, ballRef, status, heartTaken, onWin, onFail, onHeart }) {
+export function Detector({
+  data,
+  boardRef,
+  ballRef,
+  status,
+  heartTaken,
+  patchActive = false,
+  onWin,
+  onFail,
+  onHeart,
+}) {
   const fired = useRef(false)
   const armed = useRef(false) // ignore garbage positions until ball is on the deck
   const heartFired = useRef(false)
@@ -45,7 +55,7 @@ export function Detector({ data, boardRef, ballRef, status, heartTaken, onWin, o
     if (tile && tile.exists) {
       const nearSurface = local.y < thickness / 2 + BALL.radius + tile.height + 0.55
       if (nearSurface) {
-        if (tile.kind === 'lava') {
+        if (tile.kind === 'lava' && !patchActive) {
           fired.current = true
           onFail('lava')
           return

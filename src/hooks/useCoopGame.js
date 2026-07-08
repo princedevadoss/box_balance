@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { generateCoopLevel } from '../level'
 import { GAME } from '../config'
 import { initAudio, playClick, playWin, playFail, playHeart, playLava } from '../audio'
+import { usePatchPowerUp } from './usePatchPowerUp'
+import { patchSecondsLeft } from '../patchPowerUp'
 
 export function useCoopGame({ roomSeed = null, playerCount = 2, authoritative = true } = {}) {
   const [status, setStatus] = useState('ready')
@@ -15,6 +17,15 @@ export function useCoopGame({ roomSeed = null, playerCount = 2, authoritative = 
   const [heartTaken, setHeartTaken] = useState(false)
   const [flash, setFlash] = useState('')
   const [failReason, setFailReason] = useState('')
+
+  const patch = usePatchPowerUp({
+    data,
+    status,
+    runId,
+    level,
+    authoritative,
+    onFlash: setFlash,
+  })
 
   const timeRef = useRef(timeLeft)
   timeRef.current = timeLeft
@@ -103,8 +114,9 @@ export function useCoopGame({ roomSeed = null, playerCount = 2, authoritative = 
     setLevel(1)
     setLives(GAME.startLives)
     setFailReason('')
+    patch.resetPatch()
     beginCountdown(1)
-  }, [beginCountdown])
+  }, [beginCountdown, patch.resetPatch])
 
   const handleWin = useCallback(() => {
     if (statusRef.current !== 'playing') return
@@ -165,6 +177,7 @@ export function useCoopGame({ roomSeed = null, playerCount = 2, authoritative = 
 
   const getSnapshot = useCallback((physics) => ({
     ...physics,
+    ...patch.getPatchSnapshot(),
     runId: runIdRef.current,
     level: levelRef.current,
     lives: livesRef.current,
@@ -175,7 +188,7 @@ export function useCoopGame({ roomSeed = null, playerCount = 2, authoritative = 
     flash: flashRef.current,
     failReason: failReasonRef.current,
     countdown: countdownRef.current,
-  }), [])
+  }), [patch])
 
   const syncFromHost = useCallback(
     (peer) => {
@@ -189,6 +202,8 @@ export function useCoopGame({ roomSeed = null, playerCount = 2, authoritative = 
         if (peer.timeLeft != null) setTimeLeft(peer.timeLeft)
       }
 
+      patch.applyPatchSync(peer)
+
       if (peer.level != null) setLevel(peer.level)
       if (peer.status != null) setStatus(peer.status)
       if (peer.countdown != null) setCountdown(peer.countdown)
@@ -199,7 +214,7 @@ export function useCoopGame({ roomSeed = null, playerCount = 2, authoritative = 
       if (peer.failReason != null) setFailReason(peer.failReason)
       if (peer.flash) setFlash(peer.flash)
     },
-    [roomSeed, playerCount]
+    [roomSeed, playerCount, patch]
   )
 
   return {
@@ -212,6 +227,9 @@ export function useCoopGame({ roomSeed = null, playerCount = 2, authoritative = 
     data,
     runId,
     heartTaken,
+    patchActive: patch.patchActive,
+    patchPickup: patch.patchPickup,
+    patchSecondsLeft: patchSecondsLeft(patch.patchUntil),
     flash,
     failReason,
     start,
@@ -220,6 +238,7 @@ export function useCoopGame({ roomSeed = null, playerCount = 2, authoritative = 
     handleWin,
     handleFail,
     handleHeart,
+    handlePatchCollect: patch.handlePatchCollect,
     getSnapshot,
     syncFromHost,
   }

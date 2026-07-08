@@ -25,6 +25,7 @@ export function CoopDetector({
   ballRef,
   status,
   heartTaken,
+  patchActive = false,
   onWin,
   onFail,
   onHeart,
@@ -94,7 +95,7 @@ export function CoopDetector({
     if (tile && tile.exists) {
       const nearSurface = local.y < thickness / 2 + BALL.radius + tile.height + 0.55
       if (nearSurface) {
-        if (tile.kind === 'lava') {
+        if (tile.kind === 'lava' && !patchActive) {
           ended.current = true
           onFail('lava')
           return

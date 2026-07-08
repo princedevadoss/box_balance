@@ -12,6 +12,9 @@ import { CoopDetector } from './CoopDetector'
 import { StateBroadcaster } from './StateBroadcaster'
 import { SceneLighting } from './SceneLighting'
 import { BallJump } from './BallJump'
+import { PatchPickup } from './PatchPickup'
+import { PatchCollector } from './PatchCollector'
+import { boardForPickup, patchPickupWorldPosition } from '../patchPowerUp'
 
 function CoopCameraRig({ slot, boards }) {
   const { camera } = useThree()
@@ -82,6 +85,9 @@ export const CoopScene = memo(function CoopScene({
   status,
   runId,
   heartTaken,
+  patchActive = false,
+  patchPickup = null,
+  onPatchCollect,
   slot,
   isHost,
   peerState,
@@ -108,6 +114,10 @@ export const CoopScene = memo(function CoopScene({
 
   const localBoardRef = boardRefs.current[slot]
   const ballSpawn = boardSpawnPosition(data.ball.spawnBoard)
+  const patchPos =
+    patchPickup != null
+      ? patchPickupWorldPosition(boardForPickup(data, patchPickup), patchPickup)
+      : null
 
   const wrapGetSnapshot = useCallback(
     (physics) => {
@@ -149,6 +159,7 @@ export const CoopScene = memo(function CoopScene({
               bodyRef={boardRefs.current[i]}
               status={status}
               heartTaken={heartTaken}
+              patchActive={patchActive}
               position={board.position}
               control={isLocal ? 'local' : 'network'}
               rotationRef={isLocal ? null : boardRotRefs.current[i]}
@@ -164,6 +175,7 @@ export const CoopScene = memo(function CoopScene({
           tint="primary"
           networkBallRef={isHost ? null : networkBallRef}
         />
+        {patchPos && <PatchPickup position={patchPos} />}
         {isHost && (
           <CoopDetector
             key={runId}
@@ -172,10 +184,21 @@ export const CoopScene = memo(function CoopScene({
             ballRef={ballRef}
             status={status}
             heartTaken={heartTaken}
+            patchActive={patchActive}
             onWin={onWin}
             onFail={onFail}
             onHeart={onHeart}
             runId={runId}
+          />
+        )}
+        {isHost && onPatchCollect && (
+          <PatchCollector
+            data={data}
+            ballRef={ballRef}
+            patchPickup={patchPickup}
+            status={status}
+            runId={runId}
+            onCollect={onPatchCollect}
           />
         )}
         {onSend && getSnapshot && (

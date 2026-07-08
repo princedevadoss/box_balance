@@ -15,6 +15,16 @@ export const GAME = {
   flashMs: 1500, // how long banner messages linger
 }
 
+// Runtime patch power-up: seals danger gaps and lava for a limited time.
+export const PATCH = {
+  durationSec: 30,
+  spawnDelayMinSec: 10,
+  spawnDelayMaxSec: 40,
+  pickupRadius: 0.95,
+  hoverY: 0.88,
+  iconScale: 0.95,
+}
+
 export const BOARD = {
   maxTilt: 0.32, // radians at full mouse deflection
   tiltEase: 0.15, // slerp factor toward the target tilt each frame
@@ -100,7 +110,7 @@ export const LEVELGEN = {
   boosts: { startLevel: 2, cap: 0.12 },
   air: { startLevel: 3, cap: 0.15 },
   lava: { startLevel: 3, cap: 0.14 },
-  heart: { everyLevels: 8 },
+  heart: { everyLevels: 3 },
   movers: { startLevel: 3, max: 6, speedBase: 0.16, speedPerLevel: 0.02, speedJitter: 0.5 },
 }
 
@@ -142,6 +152,12 @@ export const COLORS = {
   ball2: '#fb923c',
   ball2Emissive: '#ea580c',
   heart: '#ef4444',
+  patchBody: '#fde68a',
+  patchCross: '#f59e0b',
+  patchVent: '#d97706',
+  patchGlow: '#fbbf24',
+  patchTile: '#86efac',
+  patchTileEmissive: '#22c55e',
   danger: '#ef4444',
   hudDanger: '#f87171',
   coopBoardA: { tileA: '#7c3aed', tileB: '#6d28d9', frame: '#6d28d9' },

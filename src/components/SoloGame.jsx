@@ -24,6 +24,8 @@ export function SoloGame({ onExit }) {
         countdown={game.countdown}
         flash={game.flash}
         failReason={game.failReason}
+        patchActive={game.patchActive}
+        patchSecondsLeft={game.patchSecondsLeft}
         start={game.start}
         resume={game.resume}
         exitToMenu={exitToMenu}
@@ -38,6 +40,9 @@ export function SoloGame({ onExit }) {
           status={game.status}
           runId={game.runId}
           heartTaken={game.heartTaken}
+          patchActive={game.patchActive}
+          patchPickup={game.patchPickup}
+          onPatchCollect={game.handlePatchCollect}
           onWin={game.handleWin}
           onFail={game.handleFail}
           onHeart={game.handleHeart}

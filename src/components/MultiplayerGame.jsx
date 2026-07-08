@@ -111,6 +111,9 @@ export function MultiplayerGame({ room, onExit }) {
               status={sceneStatus}
               runId={game.runId}
               heartTaken={game.heartTaken}
+              patchActive={game.patchActive}
+              patchPickup={game.patchPickup}
+              onPatchCollect={game.handlePatchCollect}
               onWin={game.handleWin}
               onFail={game.handleFail}
               onHeart={game.handleHeart}

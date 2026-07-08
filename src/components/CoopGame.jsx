@@ -70,6 +70,8 @@ export function CoopGame({ room, onExit }) {
         countdown={game.countdown}
         flash={game.flash}
         failReason={game.failReason}
+        patchActive={game.patchActive}
+        patchSecondsLeft={game.patchSecondsLeft}
         players={players}
         slot={slot}
         playerLabels={playerLabels}
@@ -86,6 +88,9 @@ export function CoopGame({ room, onExit }) {
           status={game.status}
           runId={game.runId}
           heartTaken={game.heartTaken}
+          patchActive={game.patchActive}
+          patchPickup={game.patchPickup}
+          onPatchCollect={isHost ? game.handlePatchCollect : undefined}
           slot={slot}
           isHost={isHost}
           peerState={peerState}

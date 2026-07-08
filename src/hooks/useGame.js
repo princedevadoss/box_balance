@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { generateLevel } from '../level'
 import { GAME } from '../config'
 import { initAudio, playClick, playWin, playFail, playHeart, playLava } from '../audio'
+import { usePatchPowerUp } from './usePatchPowerUp'
+import { isPatchActive, patchSecondsLeft } from '../patchPowerUp'
 
 // Owns all game state and transitions. Returns everything the UI + Scene need.
 export function useGame({ roomSeed = null } = {}) {
@@ -17,6 +19,15 @@ export function useGame({ roomSeed = null } = {}) {
   const [heartTaken, setHeartTaken] = useState(false)
   const [flash, setFlash] = useState('')
   const [failReason, setFailReason] = useState('')
+
+  const patch = usePatchPowerUp({
+    data,
+    status,
+    runId,
+    level,
+    authoritative: true,
+    onFlash: setFlash,
+  })
 
   const timeRef = useRef(timeLeft)
   timeRef.current = timeLeft
@@ -101,6 +112,7 @@ export function useGame({ roomSeed = null } = {}) {
     setLevel(1)
     setLives(GAME.startLives)
     setFailReason('')
+    patch.resetPatch()
     beginCountdown(1)
   }
 
@@ -164,6 +176,7 @@ export function useGame({ roomSeed = null } = {}) {
 
   const getSnapshot = (physics) => ({
     ...physics,
+    ...patch.getPatchSnapshot(),
     level: levelRef.current,
     lives: livesRef.current,
     score: scoreRef.current,
@@ -187,6 +200,9 @@ export function useGame({ roomSeed = null } = {}) {
     data,
     runId,
     heartTaken,
+    patchActive: patch.patchActive,
+    patchPickup: patch.patchPickup,
+    patchSecondsLeft: patchSecondsLeft(patch.patchUntil),
     flash,
     failReason,
     // actions
@@ -196,6 +212,7 @@ export function useGame({ roomSeed = null } = {}) {
     handleWin,
     handleFail,
     handleHeart,
+    handlePatchCollect: patch.handlePatchCollect,
     getSnapshot,
   }
 }
