@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { Environment, ContactShadows } from '@react-three/drei'
+import { ContactShadows } from '@react-three/drei'
 import { Physics } from '@react-three/rapier'
 import * as THREE from 'three'
 import { CAMERA, PHYSICS, BALL } from '../config'
@@ -8,6 +8,7 @@ import { cellCenter } from '../level'
 import { Board } from './Board'
 import { Ball } from './Ball'
 import { Detector } from './Detector'
+import { SceneLighting } from './SceneLighting'
 
 import { StateBroadcaster } from './StateBroadcaster'
 
@@ -41,9 +42,7 @@ export function Scene({
   const spawn = [sx, data.thickness / 2 + BALL.spawnHeight, sz]
   return (
     <>
-      <ambientLight intensity={0.6} />
-      <directionalLight position={[8, 16, 8]} intensity={1.4} castShadow shadow-mapSize={[2048, 2048]} />
-      <Environment preset="city" />
+      <SceneLighting />
       <CameraRig extent={extent} />
 
       <Physics key={runId} gravity={PHYSICS.gravity} paused={status === 'paused'}>

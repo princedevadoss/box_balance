@@ -1,6 +1,6 @@
 import { memo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { Environment, ContactShadows } from '@react-three/drei'
+import { ContactShadows } from '@react-three/drei'
 import { Physics } from '@react-three/rapier'
 import * as THREE from 'three'
 import { CAMERA, PHYSICS } from '../config'
@@ -9,6 +9,7 @@ import { Board } from './Board'
 import { Ball } from './Ball'
 import { CoopDetector } from './CoopDetector'
 import { StateBroadcaster } from './StateBroadcaster'
+import { SceneLighting } from './SceneLighting'
 
 function CoopCameraRig({ extent }) {
   const { camera } = useThree()
@@ -63,9 +64,7 @@ export const CoopScene = memo(function CoopScene({
 
   return (
     <>
-      <ambientLight intensity={0.6} />
-      <directionalLight position={[8, 16, 8]} intensity={1.4} castShadow shadow-mapSize={[2048, 2048]} />
-      <Environment preset="city" />
+      <SceneLighting />
       <CoopCameraRig extent={data.totalExtent} />
       <PeerNetworkBridge
         peerStateRef={peerStateRef}

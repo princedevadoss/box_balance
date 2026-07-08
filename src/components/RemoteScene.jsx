@@ -1,11 +1,12 @@
 import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Environment, ContactShadows } from '@react-three/drei'
+import { ContactShadows } from '@react-three/drei'
 import * as THREE from 'three'
 import { CAMERA, BALL } from '../config'
 import { generateLevel } from '../level'
 import { useNizhenTexture } from '../textures'
 import { Board } from './Board'
+import { SceneLighting } from './SceneLighting'
 
 function RemoteCameraRig({ extent }) {
   const target = useRef(new THREE.Vector3())
@@ -77,9 +78,7 @@ export function RemoteScene({ peerState, roomSeed }) {
 
   return (
     <>
-      <ambientLight intensity={0.6} />
-      <directionalLight position={[8, 16, 8]} intensity={1.4} castShadow shadow-mapSize={[1024, 1024]} />
-      <Environment preset="city" />
+      <SceneLighting shadowMap={1024} />
       <RemoteCameraRig extent={extent} />
       <Board
         data={data}
