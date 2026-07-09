@@ -9,8 +9,6 @@ export function CoopHud({
   countdown,
   flash,
   failReason,
-  patchActive = false,
-  patchSecondsLeft = 0,
   players,
   slot,
   playerLabels,
@@ -68,12 +66,8 @@ export function CoopHud({
             )
           })}
         </div>
-        <p className="coop-jump-hint">Click to jump · move mouse to tilt your board</p>
+        <p className="coop-jump-hint">Click jump · Tab power-up · Space use</p>
       </div>
-
-      {patchActive && status === 'playing' && (
-        <div className="patch-badge">🩹 Patch {patchSecondsLeft}s</div>
-      )}
 
       {flash && (status === 'playing' || status === 'countdown') && (
         <div className="flash">{flash}</div>

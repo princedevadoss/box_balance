@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
+import { useBeforePhysicsStep } from '@react-three/rapier'
 import * as THREE from 'three'
 import { boardHoleLocal } from '../level'
 import { GAME, BALL, HAZARD, airLaunchSpeed } from '../config'
@@ -26,6 +27,7 @@ export function CoopDetector({
   status,
   heartTaken,
   patchActive = false,
+  ghostActive = false,
   onWin,
   onFail,
   onHeart,
@@ -36,6 +38,7 @@ export function CoopDetector({
   const airCd = useRef(0)
   const boostCd = useRef(0)
   const ended = useRef(false)
+  const deltaRef = useRef(0)
   const launchSpeed = airLaunchSpeed(data.level)
   const boards = data.boards ?? []
 
@@ -61,7 +64,12 @@ export function CoopDetector({
   }
 
   useFrame((_, delta) => {
+    deltaRef.current = delta
+  })
+
+  useBeforePhysicsStep(() => {
     if (status !== 'playing' || ended.current) return
+    const delta = deltaRef.current
 
     const ball = ballRef.current
     if (!ball) return
@@ -95,7 +103,7 @@ export function CoopDetector({
     if (tile && tile.exists) {
       const nearSurface = local.y < thickness / 2 + BALL.radius + tile.height + 0.55
       if (nearSurface) {
-        if (tile.kind === 'lava' && !patchActive) {
+        if (tile.kind === 'lava' && !patchActive && !ghostActive) {
           ended.current = true
           onFail('lava')
           return
@@ -104,7 +112,7 @@ export function CoopDetector({
           heartFired.current = true
           onHeart()
         }
-        if (tile.kind === 'air' && airCd.current <= 0) {
+        if (tile.kind === 'air' && !ghostActive && airCd.current <= 0) {
           const lv = ball.linvel()
           ball.setLinvel({ x: lv.x, y: launchSpeed, z: lv.z }, true)
           airCd.current = HAZARD.air.cooldown
@@ -127,13 +135,15 @@ export function CoopDetector({
     }
 
     if (t.y <= GAME.fallY) {
-      ended.current = true
-      onFail('fell')
+      if (!ghostActive) {
+        ended.current = true
+        onFail('fell')
+      }
       return
     }
 
     if (activeBoard.boardIndex !== goalBoard.boardIndex) {
-      if (local.y <= -0.4) {
+      if (local.y <= -0.4 && !ghostActive) {
         ended.current = true
         onFail('fell')
       }

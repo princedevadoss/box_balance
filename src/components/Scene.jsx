@@ -1,8 +1,7 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { ContactShadows } from '@react-three/drei'
 import { Physics } from '@react-three/rapier'
-import * as THREE from 'three'
 import { CAMERA, PHYSICS, BALL } from '../config'
 import { cellCenter } from '../level'
 import { Board } from './Board'
@@ -10,19 +9,21 @@ import { Ball } from './Ball'
 import { Detector } from './Detector'
 import { SceneLighting } from './SceneLighting'
 import { BallJump } from './BallJump'
-
+import { BallFlyController } from './BallFlyController'
 import { StateBroadcaster } from './StateBroadcaster'
-import { PatchPickup } from './PatchPickup'
-import { PatchCollector } from './PatchCollector'
-import { boardForPickup, patchPickupWorldPosition } from '../patchPowerUp'
+import { PowerUpCollector } from './PowerUpCollector'
+import { PowerUpPhysicsBridge } from './PowerUpPhysicsBridge'
 
-// Eases the camera to frame the current board size.
 function CameraRig({ extent }) {
   const { camera } = useThree()
-  const target = useRef(new THREE.Vector3())
+  const target = useRef({ x: 0, y: 0, z: 0 })
   useFrame(() => {
-    target.current.set(0, extent * 1.15 + 4, extent * 0.95 + 3)
-    camera.position.lerp(target.current, CAMERA.ease)
+    const ty = extent * 1.15 + 4
+    const tz = extent * 0.95 + 3
+    target.current.x *= 1 - CAMERA.ease
+    target.current.y += (ty - target.current.y) * CAMERA.ease
+    target.current.z += (tz - target.current.z) * CAMERA.ease
+    camera.position.set(target.current.x, target.current.y, target.current.z)
     camera.lookAt(0, 0, 0)
   })
   return null
@@ -34,8 +35,13 @@ export function Scene({
   runId,
   heartTaken,
   patchActive = false,
-  patchPickup = null,
-  onPatchCollect,
+  ghostActive = false,
+  flyActive = false,
+  shrinkScale = 1,
+  worldPickup = null,
+  onWorldCollect,
+  registerActivateCtx,
+  processPowerUpPhysics,
   onWin,
   onFail,
   onHeart,
@@ -47,27 +53,39 @@ export function Scene({
   const extent = data.gridN * data.cell
   const [sx, sz] = cellCenter(data.start.r, data.start.c, data.gridN, data.cell)
   const spawn = [sx, data.thickness / 2 + BALL.spawnHeight, sz]
-  const patchPos =
-    patchPickup != null
-      ? patchPickupWorldPosition(boardForPickup(data, patchPickup), patchPickup)
-      : null
+
+  useEffect(() => {
+    registerActivateCtx?.({ ballRef, boardRef, data })
+  }, [registerActivateCtx, data, runId])
 
   return (
     <>
       <SceneLighting />
       <CameraRig extent={extent} />
-      <BallJump ballRef={ballRef} status={status} />
+      <BallFlyController ballRef={ballRef} boardRef={boardRef} flyActive={flyActive} status={status} />
 
       <Physics key={runId} gravity={PHYSICS.gravity} paused={status === 'paused'}>
+        <BallJump ballRef={ballRef} status={status} />
+        {processPowerUpPhysics && <PowerUpPhysicsBridge processPowerUpPhysics={processPowerUpPhysics} />}
         <Board
           data={data}
           bodyRef={boardRef}
           status={status}
           heartTaken={heartTaken}
           patchActive={patchActive}
+          ghostActive={ghostActive}
+          worldPickup={worldPickup}
+          boardIndex={0}
         />
-        <Ball bodyRef={ballRef} status={status} spawn={spawn} level={data.level} runId={runId} />
-        {patchPos && <PatchPickup position={patchPos} />}
+        <Ball
+          bodyRef={ballRef}
+          status={status}
+          spawn={spawn}
+          level={data.level}
+          runId={runId}
+          flyActive={flyActive}
+          radiusScale={shrinkScale}
+        />
         <Detector
           data={data}
           boardRef={boardRef}
@@ -75,18 +93,20 @@ export function Scene({
           status={status}
           heartTaken={heartTaken}
           patchActive={patchActive}
+          ghostActive={ghostActive}
           onWin={onWin}
           onFail={onFail}
           onHeart={onHeart}
         />
-        {onPatchCollect && (
-          <PatchCollector
+        {onWorldCollect && (
+          <PowerUpCollector
             data={data}
             ballRef={ballRef}
-            patchPickup={patchPickup}
+            boardRef={boardRef}
+            worldPickup={worldPickup}
             status={status}
             runId={runId}
-            onCollect={onPatchCollect}
+            onCollect={onWorldCollect}
           />
         )}
         {onSend && getSnapshot && (

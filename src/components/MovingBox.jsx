@@ -1,13 +1,24 @@
 import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { CuboidCollider } from '@react-three/rapier'
+import { CuboidCollider, useBeforePhysicsStep } from '@react-three/rapier'
 import { HAZARD, COLORS } from '../config'
 
 // Blue box that slides back and forth across the board along one axis. Lives
 // inside the board body so it tilts too; its collider tracks its visual each frame.
-export function MovingBox({ axis, line, halfRange, speed, phase, cell, thickness, visualOnly = false }) {
+export function MovingBox({
+  axis,
+  line,
+  halfRange,
+  speed,
+  phase,
+  cell,
+  thickness,
+  visualOnly = false,
+  ghostActive = false,
+}) {
   const meshRef = useRef(null)
   const colRef = useRef(null)
+  const posRef = useRef({ x: 0, y: 0, z: 0 })
   const size = cell * HAZARD.mover.size
   const boxH = HAZARD.mover.height
   const y = thickness / 2 + boxH / 2
@@ -23,8 +34,15 @@ export function MovingBox({ axis, line, halfRange, speed, phase, cell, thickness
     const px = axis === 'x' ? coord : line
     const pz = axis === 'x' ? line : coord
     if (meshRef.current) meshRef.current.position.set(px, y, pz)
+    posRef.current = { x: px, y, z: pz }
+  })
+
+  useBeforePhysicsStep(() => {
+    if (visualOnly) return
     const col = colRef.current
-    if (col && col.setTranslationWrtParent) col.setTranslationWrtParent({ x: px, y, z: pz })
+    if (!col?.setTranslationWrtParent) return
+    const { x, y: py, z } = posRef.current
+    col.setTranslationWrtParent({ x, y: py, z })
   })
   return (
     <>
@@ -37,6 +55,7 @@ export function MovingBox({ axis, line, halfRange, speed, phase, cell, thickness
           ref={colRef}
           args={[size / 2, boxH / 2, size / 2]}
           position={startPos}
+          sensor={ghostActive}
           friction={HAZARD.mover.friction}
           restitution={HAZARD.mover.restitution}
         />

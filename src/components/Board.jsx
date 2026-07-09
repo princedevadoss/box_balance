@@ -8,16 +8,21 @@ import { useArrowTexture, boostAngle } from '../textures'
 import { AirEffect, LavaEffect } from './effects'
 import { PocketTile } from './PocketTile'
 import { MovingBox } from './MovingBox'
+import { PowerUpPickup } from './PowerUpPickup'
+import { pickupLocalPosition } from '../powerUps'
 
 // One kinematic body holding every tile collider. colliders={false} so
-// decorative meshes (rings, glows, heart, arrows) are visual only.
+// decorative meshes (rings, glows, arrows) are visual only.
 export function Board({
   data,
   bodyRef,
   status,
-  heartTaken,
+  heartTaken: _heartTaken,
   patchActive = false,
+  ghostActive = false,
   visualOnly = false,
+  worldPickup = null,
+  boardIndex = 0,
   rotationRef,
   position = [0, 0, 0],
   control = 'local',
@@ -25,12 +30,11 @@ export function Board({
   const currentQuat = useRef(new THREE.Quaternion())
   const targetEuler = useRef(new THREE.Euler())
   const targetQuat = useRef(new THREE.Quaternion())
-  const heartRef = useRef(null)
   const visualGroupRef = useRef(null)
   const arrowTex = useArrowTexture()
   const { pointer } = useThree()
 
-  const { gridN, cell, thickness, cells, heart, level, movers, theme } = data
+  const { gridN, cell, thickness, cells, level, movers, theme } = data
   const palette =
     theme === 'b'
       ? COLORS.coopBoardB
@@ -41,11 +45,13 @@ export function Board({
       : theme === 'a'
       ? COLORS.coopBoardA
       : { tileA: COLORS.tileA, tileB: COLORS.tileB, frame: COLORS.pocketFrame }
-  const heartBaseY = thickness / 2 + 0.85
   const airIntensity = effectIntensity(level, LEVELGEN.air.startLevel)
   const lavaIntensity = effectIntensity(level, LEVELGEN.lava.startLevel)
   const extent = gridN * cell
   const halfRange = extent / 2 - cell * 0.4
+  const showPickup =
+    worldPickup != null && (worldPickup.boardIndex ?? 0) === boardIndex
+  const pickupLocal = showPickup ? pickupLocalPosition(data, worldPickup) : null
 
   useFrame((state) => {
     if (visualOnly) {
@@ -73,11 +79,6 @@ export function Board({
           body.setNextKinematicRotation(currentQuat.current)
         }
       }
-    }
-    if (heartRef.current) {
-      const t = state.clock.getElapsedTime()
-      heartRef.current.rotation.y = t * 1.6
-      heartRef.current.position.y = heartBaseY + Math.sin(t * 3) * 0.12
     }
   })
 
@@ -220,9 +221,6 @@ export function Board({
     }
   }
 
-  const showHeart = heart && !heartTaken
-  const heartXZ = heart ? cellCenter(heart.r, heart.c, gridN, cell) : [0, 0]
-
   const boardContent = (
     <>
       {tiles}
@@ -241,25 +239,14 @@ export function Board({
             cell={cell}
             thickness={thickness}
             visualOnly={visualOnly}
+            ghostActive={ghostActive}
           />
         ))}
 
-      {showHeart && (
-        <group ref={heartRef} position={[heartXZ[0], heartBaseY, heartXZ[1]]} scale={0.9}>
-          <mesh position={[-0.17, 0.08, 0]}>
-            <sphereGeometry args={[0.2, 20, 20]} />
-            <meshStandardMaterial color={COLORS.heart} emissive={COLORS.heart} emissiveIntensity={0.5} />
-          </mesh>
-          <mesh position={[0.17, 0.08, 0]}>
-            <sphereGeometry args={[0.2, 20, 20]} />
-            <meshStandardMaterial color={COLORS.heart} emissive={COLORS.heart} emissiveIntensity={0.5} />
-          </mesh>
-          <mesh position={[0, -0.17, 0]} rotation={[Math.PI, 0, 0]}>
-            <coneGeometry args={[0.3, 0.42, 20]} />
-            <meshStandardMaterial color={COLORS.heart} emissive={COLORS.heart} emissiveIntensity={0.5} />
-          </mesh>
-        </group>
+      {showPickup && pickupLocal && (
+        <PowerUpPickup type={worldPickup.type} localPosition={pickupLocal} cell={cell} />
       )}
+
     </>
   )
 

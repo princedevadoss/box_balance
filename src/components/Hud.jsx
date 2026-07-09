@@ -1,4 +1,4 @@
-import { GAME, COLORS, PATCH } from '../config'
+import { GAME, COLORS } from '../config'
 
 // All 2D UI: HUD stats, flash banner, get-ready countdown, and overlays.
 export function Hud({
@@ -10,8 +10,6 @@ export function Hud({
   countdown,
   flash,
   failReason,
-  patchActive = false,
-  patchSecondsLeft = 0,
   start,
   resume,
   exitToMenu,
@@ -45,10 +43,6 @@ export function Hud({
         </div>
       </div>
 
-      {patchActive && status === 'playing' && (
-        <div className="patch-badge">🩹 Patch {patchSecondsLeft}s</div>
-      )}
-
       {flash && (status === 'playing' || status === 'countdown') && (
         <div className="flash">{flash}</div>
       )}
@@ -60,7 +54,9 @@ export function Hud({
         </div>
       )}
 
-      {status === 'playing' && <div className="pause-hint">Press ESC to pause</div>}
+      {status === 'playing' && (
+        <div className="pause-hint">ESC pause · Tab switch power-up · Space use</div>
+      )}
 
       {(status === 'ready' || status === 'over' || status === 'paused') && (
         <div className="overlay">
@@ -104,17 +100,9 @@ export function Hud({
                 <strong>{GAME.startLives} lives</strong>.
               </p>
               <p style={{ fontSize: 14 }}>
-                Clear every <strong>{GAME.bonusLifeEveryLevels} levels</strong> to earn a bonus life
-                ·{' '}
-                <strong style={{ color: COLORS.heart }}>❤ Hearts</strong> (every{' '}
-                {GAME.bonusLifeEveryLevels} levels) give a life ·{' '}
-                <strong style={{ color: COLORS.patchGlow }}>🩹 Patch pickups</strong> on even levels
-                ({PATCH.spawnDelayMinSec}–{PATCH.spawnDelayMaxSec}s in) seal gaps & lava for{' '}
-                {PATCH.durationSec}s · <strong style={{ color: COLORS.arrow }}>{'>>'} boost pads</strong>{' '}
-                fling you along · <strong style={{ color: COLORS.airGlow }}>air tiles</strong>{' '}
-                bounce you up · <strong style={{ color: COLORS.lavaEmissive }}>lava tiles</strong>{' '}
-                and <strong style={{ color: COLORS.mover }}>moving boxes</strong> get in your way.
-                Boards get bigger and trickier every level.
+                Collect 2 power-ups per level between 30–60s (one on the board at a time). After
+                losing a life, one appears at start plus 2 more later. Stored across levels.{' '}
+                <strong>Tab</strong> to select, <strong>Space</strong> to use.
               </p>
               <button onClick={start}>Start Game</button>
               {showBackOnReady && (

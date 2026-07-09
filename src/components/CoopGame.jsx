@@ -4,6 +4,8 @@ import { CAMERA, COLORS } from '../config'
 import { useCoopGame } from '../hooks/useCoopGame'
 import { CoopScene } from './CoopScene'
 import { CoopHud } from './CoopHud'
+import { PowerUpHud } from './PowerUpHud'
+import { PowerUpActiveTimer } from './PowerUpActiveTimer'
 
 const THEME_LABELS = {
   a: 'purple',
@@ -26,12 +28,12 @@ export function CoopGame({ room, onExit }) {
     sendEvent,
     disconnect,
     phase,
-    playerName,
     isHost,
   } = room
 
   const playerCount = Math.max(2, players.length || 2)
   const game = useCoopGame({ roomSeed: seed, playerCount, authoritative: isHost })
+
   useEffect(() => {
     if (phase === 'matched' && isHost) game.start()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -70,8 +72,6 @@ export function CoopGame({ room, onExit }) {
         countdown={game.countdown}
         flash={game.flash}
         failReason={game.failReason}
-        patchActive={game.patchActive}
-        patchSecondsLeft={game.patchSecondsLeft}
         players={players}
         slot={slot}
         playerLabels={playerLabels}
@@ -79,6 +79,17 @@ export function CoopGame({ room, onExit }) {
         roomCode={code}
         resume={game.resume}
         exitToMenu={handleExit}
+      />
+      <PowerUpHud inventory={game.inventory} selectedType={game.selectedType} />
+      <PowerUpActiveTimer
+        patchActive={game.patchActive}
+        ghostActive={game.ghostActive}
+        flyActive={game.flyActive}
+        shrinkActive={game.shrinkActive}
+        patchSecondsLeft={game.patchSecondsLeft}
+        ghostSecondsLeft={game.ghostSecondsLeft}
+        flySecondsLeft={game.flySecondsLeft}
+        shrinkSecondsLeft={game.shrinkSecondsLeft}
       />
 
       <Canvas shadows camera={{ position: CAMERA.position, fov: CAMERA.fov }}>
@@ -89,8 +100,13 @@ export function CoopGame({ room, onExit }) {
           runId={game.runId}
           heartTaken={game.heartTaken}
           patchActive={game.patchActive}
-          patchPickup={game.patchPickup}
-          onPatchCollect={isHost ? game.handlePatchCollect : undefined}
+          ghostActive={game.ghostActive}
+          flyActive={game.flyActive}
+          shrinkScale={game.shrinkScale}
+          worldPickup={game.worldPickup}
+          onWorldCollect={isHost ? game.handleWorldCollect : undefined}
+          registerActivateCtx={game.registerActivateCtx}
+          processPowerUpPhysics={isHost ? game.processPowerUpPhysics : undefined}
           slot={slot}
           isHost={isHost}
           peerState={peerState}

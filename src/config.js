@@ -25,6 +25,71 @@ export const PATCH = {
   iconScale: 0.95,
 }
 
+// Stored power-up inventory (all modes). Persists across levels; board spawns are per-level.
+export const POWERUP = {
+  spawnsPerLevel: 2,
+  spawnWindows: [
+    { minSec: 0, maxSec: 10 },
+    { minSec: 30, maxSec: 40 },
+  ],
+  lifeRetryStartSpawn: true, // after losing a life, one extra pickup appears at level start
+  spawnRetrySec: 1, // wait and retry if a pickup is still on the board
+  pickupRadius: 0.95,
+  hoverY: 0.35,
+  modelScale: 0.88, // fraction of tile size for board pickup models
+  types: {
+    health: {
+      label: 'Health',
+      icon: '❤',
+      durationSec: 0,
+      description: 'Restores one life instantly.',
+      model: '/models/heart.glb',
+      preview: '/preview/heart_render.png',
+    },
+    patch: {
+      label: 'Patch',
+      icon: '🩹',
+      durationSec: 30,
+      description: 'Seals danger gaps and lava for 30 seconds.',
+      model: '/models/wrench.glb',
+      preview: '/preview/wrench_render.png',
+    },
+    ghost: {
+      label: 'Ghost',
+      icon: '👻',
+      durationSec: 15,
+      description: 'Pass through hazards, gaps, air, and movers for 15 seconds.',
+      model: '/models/ghost.glb',
+      preview: '/preview/ghost_render.png',
+    },
+    portal: {
+      label: 'Portal',
+      icon: '🌀',
+      durationSec: 0,
+      description: 'Teleports the ball near the goal hole.',
+      model: '/models/portal.glb',
+      preview: '/preview/portal_render.png',
+    },
+    fly: {
+      label: 'Fly',
+      icon: '🪶',
+      durationSec: 5,
+      description: 'Float the ball with the mouse for 5 seconds.',
+      model: '/models/wingedball.glb',
+      preview: '/preview/wingedball_render.png',
+    },
+    shrink: {
+      label: 'Shrink',
+      icon: '🔵',
+      durationSec: 10,
+      scale: 0.5,
+      description: 'Shrinks the ball to slip through tight spots for 10 seconds.',
+      model: '/models/arrow.glb',
+      preview: '/preview/arrow_render.png',
+    },
+  },
+}
+
 export const BOARD = {
   maxTilt: 0.32, // radians at full mouse deflection
   tiltEase: 0.15, // slerp factor toward the target tilt each frame
@@ -81,6 +146,13 @@ export const POCKET = {
 
 export const COOP = {
   boardGap: 0, // boards touch edge-to-edge at the seam
+  seam: {
+    fullBridgeMaxLevel: 4, // levels 1–4: every tile present at each join
+    oneGapMaxLevel: 8, // levels 5–8: one missing tile per join (both boards)
+    gapRampStartLevel: 9, // level 9+: two gaps, then +1 every gapRampEvery levels
+    gapRampEvery: 4,
+    maxSeamGaps: 5,
+  },
 }
 
 export const CAMERA = {
@@ -110,7 +182,6 @@ export const LEVELGEN = {
   boosts: { startLevel: 2, cap: 0.12 },
   air: { startLevel: 3, cap: 0.15 },
   lava: { startLevel: 3, cap: 0.14 },
-  heart: { everyLevels: 3 },
   movers: { startLevel: 3, max: 6, speedBase: 0.16, speedPerLevel: 0.02, speedJitter: 0.5 },
 }
 

@@ -802,3 +802,181 @@ canvas {
   color: var(--text-muted);
   text-align: center;
 }
+
+.powerup-hud {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 12;
+  pointer-events: none;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--panel-border);
+  background: var(--panel-strong);
+  width: min(220px, 28vw);
+  text-align: center;
+}
+
+.powerup-hud__title {
+  font-size: 10px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.powerup-hud__card {
+  position: relative;
+  margin: 0 auto 10px;
+  width: 120px;
+  height: 120px;
+  border-radius: 14px;
+  border: 2px solid rgba(139, 92, 246, 0.35);
+  background: rgba(255, 255, 255, 0.85);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.powerup-hud__card--empty {
+  opacity: 0.55;
+  filter: grayscale(0.6);
+}
+
+.powerup-hud__preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.powerup-hud__preview--fallback {
+  font-size: 52px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.powerup-hud__count {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-main);
+  text-shadow: 0 1px 3px rgba(255, 255, 255, 0.9);
+}
+
+.powerup-hud__label {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.powerup-hud__desc {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text-muted);
+  min-height: 30px;
+}
+
+.powerup-hud__hint {
+  margin-top: 10px;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.powerup-active-timer {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 12;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.powerup-active-timer__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--panel-border);
+  background: var(--panel-strong);
+  min-width: 140px;
+}
+
+.powerup-active-timer__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.powerup-active-timer__emoji {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.powerup-active-timer__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.powerup-active-timer__label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.powerup-active-timer__time {
+  font-size: 20px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.split-header .powerup-hud {
+  position: static;
+  width: auto;
+  min-width: 160px;
+  max-width: 200px;
+  padding: 8px 10px;
+  margin: 0 8px;
+  flex: 0 0 auto;
+}
+
+.split-header .powerup-hud__card {
+  width: 72px;
+  height: 72px;
+  margin-bottom: 6px;
+}
+
+.split-header .powerup-hud__label {
+  font-size: 13px;
+}
+
+.split-header .powerup-hud__desc {
+  display: none;
+}
+
+.split-header .powerup-hud__hint {
+  display: none;
+}
+
+.split-screen .powerup-active-timer {
+  top: 52px;
+}

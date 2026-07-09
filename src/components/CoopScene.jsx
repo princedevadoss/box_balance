@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useRef } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { ContactShadows } from '@react-three/drei'
 import { Physics } from '@react-three/rapier'
@@ -12,9 +12,9 @@ import { CoopDetector } from './CoopDetector'
 import { StateBroadcaster } from './StateBroadcaster'
 import { SceneLighting } from './SceneLighting'
 import { BallJump } from './BallJump'
-import { PatchPickup } from './PatchPickup'
-import { PatchCollector } from './PatchCollector'
-import { boardForPickup, patchPickupWorldPosition } from '../patchPowerUp'
+import { BallFlyController } from './BallFlyController'
+import { PowerUpCollector } from './PowerUpCollector'
+import { PowerUpPhysicsBridge } from './PowerUpPhysicsBridge'
 
 function CoopCameraRig({ slot, boards }) {
   const { camera } = useThree()
@@ -86,8 +86,13 @@ export const CoopScene = memo(function CoopScene({
   runId,
   heartTaken,
   patchActive = false,
-  patchPickup = null,
-  onPatchCollect,
+  ghostActive = false,
+  flyActive = false,
+  shrinkScale = 1,
+  worldPickup = null,
+  onWorldCollect,
+  registerActivateCtx,
+  processPowerUpPhysics,
   slot,
   isHost,
   peerState,
@@ -114,10 +119,10 @@ export const CoopScene = memo(function CoopScene({
 
   const localBoardRef = boardRefs.current[slot]
   const ballSpawn = boardSpawnPosition(data.ball.spawnBoard)
-  const patchPos =
-    patchPickup != null
-      ? patchPickupWorldPosition(boardForPickup(data, patchPickup), patchPickup)
-      : null
+
+  useEffect(() => {
+    registerActivateCtx?.({ ballRef, boardRefs, data })
+  }, [registerActivateCtx, data, runId])
 
   const wrapGetSnapshot = useCallback(
     (physics) => {
@@ -141,17 +146,22 @@ export const CoopScene = memo(function CoopScene({
         boardRotRefs={boardRotRefs}
         runId={runId}
       />
-      <BallJump
-        ballRef={ballRef}
-        status={status}
-        isHost={isHost}
-        onJumpRequest={onJumpRequest}
-        peerEventRef={peerEventRef}
-      />
+      {isHost && (
+        <BallFlyController ballRef={ballRef} boardRef={boardRefs.current[slot]} flyActive={flyActive} status={status} />
+      )}
 
       <Physics key={runId} gravity={PHYSICS.gravity} paused={status === 'paused'}>
+        <BallJump
+          ballRef={ballRef}
+          status={status}
+          isHost={isHost}
+          onJumpRequest={onJumpRequest}
+          peerEventRef={peerEventRef}
+        />
+        {processPowerUpPhysics && <PowerUpPhysicsBridge processPowerUpPhysics={processPowerUpPhysics} />}
         {boards.map((board, i) => {
           const isLocal = i === slot
+          const idx = board.boardIndex ?? i
           return (
             <Board
               key={`board-${i}-${runId}`}
@@ -160,9 +170,12 @@ export const CoopScene = memo(function CoopScene({
               status={status}
               heartTaken={heartTaken}
               patchActive={patchActive}
+              ghostActive={ghostActive}
               position={board.position}
               control={isLocal ? 'local' : 'network'}
               rotationRef={isLocal ? null : boardRotRefs.current[i]}
+              boardIndex={idx}
+              worldPickup={worldPickup}
             />
           )
         })}
@@ -173,9 +186,10 @@ export const CoopScene = memo(function CoopScene({
           level={data.level}
           runId={runId}
           tint="primary"
+          flyActive={isHost ? flyActive : false}
+          radiusScale={shrinkScale}
           networkBallRef={isHost ? null : networkBallRef}
         />
-        {patchPos && <PatchPickup position={patchPos} />}
         {isHost && (
           <CoopDetector
             key={runId}
@@ -185,20 +199,22 @@ export const CoopScene = memo(function CoopScene({
             status={status}
             heartTaken={heartTaken}
             patchActive={patchActive}
+            ghostActive={ghostActive}
             onWin={onWin}
             onFail={onFail}
             onHeart={onHeart}
             runId={runId}
           />
         )}
-        {isHost && onPatchCollect && (
-          <PatchCollector
+        {isHost && onWorldCollect && (
+          <PowerUpCollector
             data={data}
             ballRef={ballRef}
-            patchPickup={patchPickup}
+            boardRefs={boardRefs}
+            worldPickup={worldPickup}
             status={status}
             runId={runId}
-            onCollect={onPatchCollect}
+            onCollect={onWorldCollect}
           />
         )}
         {onSend && getSnapshot && (

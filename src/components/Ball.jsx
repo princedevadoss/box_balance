@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { RigidBody } from '@react-three/rapier'
+import { RigidBody, BallCollider } from '@react-three/rapier'
 import * as THREE from 'three'
 import { BALL, COLORS } from '../config'
 import { useNizhenTexture } from '../textures'
@@ -16,18 +16,25 @@ function extrapolateSeconds(receivedAt) {
   return Math.min(Math.max(0, (performance.now() - receivedAt) / 1000), MAX_EXTRAPOLATE_S)
 }
 
-export function Ball({ bodyRef, status, spawn, level = 1, runId = 0, tint = 'primary', networkBallRef = null }) {
+export function Ball({
+  bodyRef,
+  status,
+  spawn,
+  level = 1,
+  runId = 0,
+  tint = 'primary',
+  networkBallRef = null,
+  flyActive = false,
+  radiusScale = 1,
+}) {
   const texture = useNizhenTexture(level)
   const frozen = status === 'countdown'
   const driven = networkBallRef != null
+  const radius = BALL.radius * radiusScale
   const [x, y, z] = spawn
   const lastRunId = useRef(runId)
   const lastNetworkRunId = useRef(null)
-
-  useEffect(() => {
-    const b = bodyRef.current
-    if (b) b.setGravityScale(frozen || driven ? 0 : 1, true)
-  }, [frozen, driven, bodyRef])
+  const resetSpawnRef = useRef(false)
 
   useEffect(() => {
     lastNetworkRunId.current = null
@@ -36,17 +43,23 @@ export function Ball({ bodyRef, status, spawn, level = 1, runId = 0, tint = 'pri
   useEffect(() => {
     if (lastRunId.current === runId) return
     lastRunId.current = runId
-    const b = bodyRef.current
-    if (!b) return
-    b.setTranslation({ x, y, z }, true)
-    b.setLinvel({ x: 0, y: 0, z: 0 }, true)
-    b.setAngvel({ x: 0, y: 0, z: 0 }, true)
+    resetSpawnRef.current = true
     if (networkBallRef) networkBallRef.current = null
-  }, [runId, x, y, z, bodyRef, networkBallRef])
+  }, [runId, networkBallRef])
 
   useFrame(() => {
     const b = bodyRef.current
     if (!b) return
+
+    if (resetSpawnRef.current) {
+      resetSpawnRef.current = false
+      b.setTranslation({ x, y, z }, true)
+      b.setLinvel({ x: 0, y: 0, z: 0 }, true)
+      b.setAngvel({ x: 0, y: 0, z: 0 }, true)
+    }
+
+    const gravityOff = frozen || driven || flyActive
+    b.setGravityScale(gravityOff ? 0 : 1, true)
 
     const networkBall = networkBallRef?.current
     if (driven && !networkBall?.pos) {
@@ -135,7 +148,7 @@ export function Ball({ bodyRef, status, spawn, level = 1, runId = 0, tint = 'pri
     <RigidBody
       ref={bodyRef}
       type={driven ? 'kinematicPosition' : 'dynamic'}
-      colliders="ball"
+      colliders={false}
       position={[x, y, z]}
       gravityScale={frozen || driven ? 0 : 1}
       friction={BALL.friction}
@@ -144,7 +157,8 @@ export function Ball({ bodyRef, status, spawn, level = 1, runId = 0, tint = 'pri
       angularDamping={BALL.angularDamping}
       canSleep={false}
     >
-      <mesh castShadow key={`ball-mesh-${level}`}>
+      <BallCollider args={[radius]} friction={BALL.friction} restitution={BALL.restitution} />
+      <mesh castShadow key={`ball-mesh-${level}-${radiusScale}`} scale={[radiusScale, radiusScale, radiusScale]}>
         <sphereGeometry args={[BALL.radius, 48, 48]} />
         <meshStandardMaterial
           key={`ball-mat-${level}`}

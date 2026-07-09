@@ -1,13 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { generateLevel } from '../level'
 import { GAME } from '../config'
-import { initAudio, playClick, playWin, playFail, playHeart, playLava } from '../audio'
-import { usePatchPowerUp } from './usePatchPowerUp'
-import { isPatchActive, patchSecondsLeft } from '../patchPowerUp'
+import { initAudio, playClick, playWin, playFail, playLava } from '../audio'
+import { usePowerUpInventory } from './usePowerUpInventory'
 
-// Owns all game state and transitions. Returns everything the UI + Scene need.
 export function useGame({ roomSeed = null } = {}) {
-  const [status, setStatus] = useState('ready') // ready | countdown | playing | paused | over
+  const [status, setStatus] = useState('ready')
   const [countdown, setCountdown] = useState(GAME.countdown)
   const [level, setLevel] = useState(1)
   const [score, setScore] = useState(0)
@@ -17,16 +15,18 @@ export function useGame({ roomSeed = null } = {}) {
   const [data, setData] = useState(() => generateLevel(1, roomSeed))
   const [runId, setRunId] = useState(0)
   const [heartTaken, setHeartTaken] = useState(false)
+  const [lifeRetrySpawn, setLifeRetrySpawn] = useState(false)
   const [flash, setFlash] = useState('')
   const [failReason, setFailReason] = useState('')
 
-  const patch = usePatchPowerUp({
+  const powerUps = usePowerUpInventory({
     data,
     status,
     runId,
-    level,
+    lifeRetrySpawn,
     authoritative: true,
     onFlash: setFlash,
+    onHeal: () => setLives((l) => l + 1),
   })
 
   const timeRef = useRef(timeLeft)
@@ -48,20 +48,17 @@ export function useGame({ roomSeed = null } = {}) {
   const countdownRef = useRef(countdown)
   countdownRef.current = countdown
 
-  // Level clock, restarted for every level.
   useEffect(() => {
     if (status !== 'playing') return
     const id = setInterval(() => setTimeLeft((t) => Math.max(0, t - 1)), 1000)
     return () => clearInterval(id)
   }, [status, level])
 
-  // Out of time counts as a miss.
   useEffect(() => {
     if (status === 'playing' && timeLeft <= 0) handleFail('time')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeLeft, status])
 
-  // Get-ready countdown; when it hits zero the ball drops and play begins.
   useEffect(() => {
     if (status !== 'countdown') return
     if (countdown <= 0) {
@@ -72,14 +69,12 @@ export function useGame({ roomSeed = null } = {}) {
     return () => clearTimeout(id)
   }, [status, countdown])
 
-  // Auto-dismiss the banner.
   useEffect(() => {
     if (!flash) return
     const id = setTimeout(() => setFlash(''), GAME.flashMs)
     return () => clearTimeout(id)
   }, [flash])
 
-  // ESC toggles pause while playing.
   useEffect(() => {
     const onKey = (e) => {
       if (e.key !== 'Escape') return
@@ -90,17 +85,16 @@ export function useGame({ roomSeed = null } = {}) {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  const loadLevel = (lvl, resetHeart = true) => {
+  const loadLevel = (lvl, { resetHeart = true, lifeRetry = false } = {}) => {
     setData(generateLevel(lvl, roomSeed))
     setTimeLeft(GAME.levelTime)
     if (resetHeart) setHeartTaken(false)
+    setLifeRetrySpawn(lifeRetry)
     setRunId((r) => r + 1)
   }
 
-  // Load a level and give the player COUNTDOWN seconds to level the board
-  // before the ball drops in.
-  const beginCountdown = (lvl) => {
-    loadLevel(lvl)
+  const beginCountdown = (lvl, options = {}) => {
+    loadLevel(lvl, options)
     setCountdown(GAME.countdown)
     setStatus('countdown')
   }
@@ -112,7 +106,7 @@ export function useGame({ roomSeed = null } = {}) {
     setLevel(1)
     setLives(GAME.startLives)
     setFailReason('')
-    patch.resetPatch()
+    powerUps.resetPowerUps()
     beginCountdown(1)
   }
 
@@ -147,15 +141,13 @@ export function useGame({ roomSeed = null } = {}) {
     } else {
       const msg = reason === 'lava' ? 'Melted!' : reason === 'time' ? "Time's up!" : 'Missed!'
       setFlash(`${msg}  ${remaining} ${remaining === 1 ? 'life' : 'lives'} left`)
-      beginCountdown(levelRef.current) // retry the same level after a get-ready
+      beginCountdown(levelRef.current, { lifeRetry: true })
     }
   }
 
   const handleHeart = () => {
-    setLives((l) => l + 1)
     setHeartTaken(true)
-    setFlash('❤ +1 Life!')
-    playHeart()
+    powerUps.handleHeartCollect()
   }
 
   const resume = () => {
@@ -176,7 +168,7 @@ export function useGame({ roomSeed = null } = {}) {
 
   const getSnapshot = (physics) => ({
     ...physics,
-    ...patch.getPatchSnapshot(),
+    ...powerUps.getPowerUpSnapshot(),
     level: levelRef.current,
     lives: livesRef.current,
     score: scoreRef.current,
@@ -189,7 +181,6 @@ export function useGame({ roomSeed = null } = {}) {
   })
 
   return {
-    // state
     status,
     countdown,
     level,
@@ -200,19 +191,15 @@ export function useGame({ roomSeed = null } = {}) {
     data,
     runId,
     heartTaken,
-    patchActive: patch.patchActive,
-    patchPickup: patch.patchPickup,
-    patchSecondsLeft: patchSecondsLeft(patch.patchUntil),
     flash,
     failReason,
-    // actions
+    ...powerUps,
     start,
     resume,
     exitToMenu,
     handleWin,
     handleFail,
     handleHeart,
-    handlePatchCollect: patch.handlePatchCollect,
     getSnapshot,
   }
 }

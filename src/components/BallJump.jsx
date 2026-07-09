@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
+import { useBeforePhysicsStep } from '@react-three/rapier'
 import { BALL, ballJumpVelocity } from '../config'
 import { playLaunch } from '../audio'
 
 export function BallJump({ ballRef, status, isHost = true, onJumpRequest, peerEventRef }) {
   const { gl } = useThree()
   const jumpCd = useRef(0)
+  const jumpPending = useRef(false)
   const lastEventKey = useRef('')
 
   const applyJump = useCallback(() => {
@@ -20,6 +22,14 @@ export function BallJump({ ballRef, status, isHost = true, onJumpRequest, peerEv
 
   useFrame((_, delta) => {
     jumpCd.current = Math.max(0, jumpCd.current - delta)
+  })
+
+  useBeforePhysicsStep(() => {
+    if (jumpPending.current) {
+      jumpPending.current = false
+      applyJump()
+    }
+
     if (!isHost || !peerEventRef?.current) return
     const evt = peerEventRef.current
     if (evt.event?.type !== 'jump') return
@@ -33,7 +43,7 @@ export function BallJump({ ballRef, status, isHost = true, onJumpRequest, peerEv
     const onPointerDown = () => {
       if (status !== 'playing' || jumpCd.current > 0) return
       if (isHost) {
-        applyJump()
+        jumpPending.current = true
       } else {
         jumpCd.current = BALL.jumpCooldown
         onJumpRequest?.()
@@ -41,7 +51,7 @@ export function BallJump({ ballRef, status, isHost = true, onJumpRequest, peerEv
     }
     gl.domElement.addEventListener('pointerdown', onPointerDown)
     return () => gl.domElement.removeEventListener('pointerdown', onPointerDown)
-  }, [status, isHost, applyJump, onJumpRequest, gl])
+  }, [status, isHost, onJumpRequest, gl])
 
   return null
 }

@@ -7,8 +7,7 @@ import { generateLevel } from '../level'
 import { useNizhenTexture } from '../textures'
 import { Board } from './Board'
 import { SceneLighting } from './SceneLighting'
-import { PatchPickup } from './PatchPickup'
-import { isPatchActive, boardForPickup, patchPickupWorldPosition } from '../patchPowerUp'
+import { isEffectActive } from '../powerUps'
 
 function RemoteCameraRig({ extent }) {
   const target = useRef(new THREE.Vector3())
@@ -20,7 +19,7 @@ function RemoteCameraRig({ extent }) {
   return null
 }
 
-function RemoteBall({ positionRef, level }) {
+function RemoteBall({ positionRef, level, scale = 1 }) {
   const meshRef = useRef(null)
   const texture = useNizhenTexture(level)
   const target = useRef(new THREE.Vector3())
@@ -34,7 +33,7 @@ function RemoteBall({ positionRef, level }) {
   })
 
   return (
-    <mesh ref={meshRef} castShadow key={`remote-ball-${level}`}>
+    <mesh ref={meshRef} castShadow key={`remote-ball-${level}-${scale}`} scale={[scale, scale, scale]}>
       <sphereGeometry args={[BALL.radius, 32, 32]} />
       <meshStandardMaterial
         key={`remote-ball-mat-${level}`}
@@ -48,7 +47,6 @@ function RemoteBall({ positionRef, level }) {
   )
 }
 
-// Opponent view: visuals only, driven by network snapshots.
 export function RemoteScene({ peerState, roomSeed }) {
   const level = peerState?.level ?? 1
   const data = useMemo(() => generateLevel(level, roomSeed), [level, roomSeed])
@@ -77,12 +75,10 @@ export function RemoteScene({ peerState, roomSeed }) {
 
   const status = peerState?.status ?? 'countdown'
   const heartTaken = peerState?.heartTaken ?? false
-  const patchActive = isPatchActive(peerState?.patchUntil)
-  const patchPickup = peerState?.patchPickup ?? null
-  const patchPos =
-    patchPickup != null
-      ? patchPickupWorldPosition(boardForPickup(data, patchPickup), patchPickup)
-      : null
+  const patchActive = isEffectActive(peerState?.effectsUntil?.patch)
+  const ghostActive = isEffectActive(peerState?.effectsUntil?.ghost)
+  const shrinkScale = isEffectActive(peerState?.effectsUntil?.shrink) ? 0.5 : 1
+  const worldPickup = peerState?.worldPickup ?? null
 
   return (
     <>
@@ -93,18 +89,14 @@ export function RemoteScene({ peerState, roomSeed }) {
         status={status}
         heartTaken={heartTaken}
         patchActive={patchActive}
+        ghostActive={ghostActive}
         visualOnly
         rotationRef={rotationRef}
+        worldPickup={worldPickup}
+        boardIndex={0}
       />
-      {patchPos && <PatchPickup position={patchPos} />}
-      <RemoteBall positionRef={ballRef} level={level} />
+      <RemoteBall positionRef={ballRef} level={level} scale={shrinkScale} />
       <ContactShadows position={[0, -0.65, 0]} opacity={0.35} scale={extent * 1.6} blur={2.5} far={12} />
-      {!peerState && (
-        <mesh position={[0, 2, 0]}>
-          <boxGeometry args={[0.01, 0.01, 0.01]} />
-          <meshBasicMaterial visible={false} />
-        </mesh>
-      )}
     </>
   )
 }

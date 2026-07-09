@@ -1,5 +1,6 @@
 import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
+import { useBeforePhysicsStep } from '@react-three/rapier'
 import * as THREE from 'three'
 import { cellCenter } from '../level'
 import { GAME, BALL, HAZARD, airLaunchSpeed } from '../config'
@@ -14,6 +15,7 @@ export function Detector({
   status,
   heartTaken,
   patchActive = false,
+  ghostActive = false,
   onWin,
   onFail,
   onHeart,
@@ -23,13 +25,19 @@ export function Detector({
   const heartFired = useRef(false)
   const airCd = useRef(0)
   const boostCd = useRef(0)
+  const deltaRef = useRef(0)
 
   const { gridN, cell, thickness, cells, hole, level } = data
   const [holeX, holeZ] = cellCenter(hole.r, hole.c, gridN, cell)
   const launchSpeed = airLaunchSpeed(level)
 
-  useFrame((state, delta) => {
+  useFrame((_, delta) => {
+    deltaRef.current = delta
+  })
+
+  useBeforePhysicsStep(() => {
     if (fired.current || status !== 'playing') return
+    const delta = deltaRef.current
     const board = boardRef.current
     const ball = ballRef.current
     if (!board || !ball) return
@@ -55,7 +63,7 @@ export function Detector({
     if (tile && tile.exists) {
       const nearSurface = local.y < thickness / 2 + BALL.radius + tile.height + 0.55
       if (nearSurface) {
-        if (tile.kind === 'lava' && !patchActive) {
+        if (tile.kind === 'lava' && !patchActive && !ghostActive) {
           fired.current = true
           onFail('lava')
           return
@@ -64,7 +72,7 @@ export function Detector({
           heartFired.current = true
           onHeart()
         }
-        if (tile.kind === 'air' && airCd.current <= 0) {
+        if (tile.kind === 'air' && !ghostActive && airCd.current <= 0) {
           const lv = ball.linvel()
           ball.setLinvel({ x: lv.x, y: launchSpeed, z: lv.z }, true)
           airCd.current = HAZARD.air.cooldown
@@ -89,6 +97,7 @@ export function Detector({
 
     // Fell below the deck: win if inside the goal pocket, otherwise a miss.
     if (local.y > -0.4 && t.y > GAME.fallY) return
+    if (ghostActive && t.y > GAME.fallY) return
     fired.current = true
     const inHole =
       Math.abs(local.x - holeX) < cell * 0.6 && Math.abs(local.z - holeZ) < cell * 0.6

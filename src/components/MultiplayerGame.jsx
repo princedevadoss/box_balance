@@ -7,6 +7,8 @@ import { resolveMatch, chaseTarget } from '../multiplayer/matchEnd'
 import { Scene } from './Scene'
 import { RemoteScene } from './RemoteScene'
 import { SplitControls } from './SplitControls'
+import { PowerUpHud } from './PowerUpHud'
+import { PowerUpActiveTimer } from './PowerUpActiveTimer'
 import {
   PaneHud,
   PaneFlash,
@@ -62,8 +64,19 @@ export function MultiplayerGame({ room, onExit }) {
 
   return (
     <div className="split-screen">
+      <PowerUpActiveTimer
+        patchActive={game.patchActive}
+        ghostActive={game.ghostActive}
+        flyActive={game.flyActive}
+        shrinkActive={game.shrinkActive}
+        patchSecondsLeft={game.patchSecondsLeft}
+        ghostSecondsLeft={game.ghostSecondsLeft}
+        flySecondsLeft={game.flySecondsLeft}
+        shrinkSecondsLeft={game.shrinkSecondsLeft}
+      />
       <div className="split-header">
         <span className="room-code">Room {code}</span>
+        <PowerUpHud inventory={game.inventory} selectedType={game.selectedType} />
         <SplitControls
           localPct={split.localPct}
           isFullLocal={split.isFullLocal}
@@ -112,8 +125,13 @@ export function MultiplayerGame({ room, onExit }) {
               runId={game.runId}
               heartTaken={game.heartTaken}
               patchActive={game.patchActive}
-              patchPickup={game.patchPickup}
-              onPatchCollect={game.handlePatchCollect}
+              ghostActive={game.ghostActive}
+              flyActive={game.flyActive}
+              shrinkScale={game.shrinkScale}
+              worldPickup={game.worldPickup}
+              onWorldCollect={game.handleWorldCollect}
+              registerActivateCtx={game.registerActivateCtx}
+              processPowerUpPhysics={game.processPowerUpPhysics}
               onWin={game.handleWin}
               onFail={game.handleFail}
               onHeart={game.handleHeart}

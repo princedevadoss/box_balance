@@ -3,7 +3,7 @@
 // square). Tunables live in config.js (LEVELGEN / TILE).
 //  - one tile is the GOAL pocket (sink the ball here to win)
 //  - some tiles are DANGER gaps (fall through = fail)
-//  - others become bumps / boosts / air / lava / a heart pickup
+//  - others become bumps / boosts / air / lava
 // Higher levels => bigger grid, sparser shape, farther hole, more hazards.
 
 import { TILE, LEVELGEN, COOP, BALL, COOP_BOARD_THEMES } from './config'
@@ -67,7 +67,7 @@ export function generateLevel(level, roomSeed = null) {
       : (Math.imul(level, 2654435761) ^ 0x9e3779b9) >>> 0
   const rng = mulberry32(baseSeed)
 
-  const { grid, fill, gaps, bumps, boosts, air, lava, heart: heartCfg, movers: moverCfg } = LEVELGEN
+  const { grid, fill, gaps, bumps, boosts, air, lava, movers: moverCfg } = LEVELGEN
   const gridN = Math.min(grid.base + Math.floor((level - 1) / grid.divisor), grid.max)
 
   // Empty bounding grid.
@@ -219,15 +219,8 @@ export function generateLevel(level, roomSeed = null) {
     }
   }
 
-  // A life heart every Nth level, sitting on one tile as a pickup.
-  let heart = null
-  if (level % heartCfg.everyLevels === 0) {
-    const cell = pickFreeCell()
-    if (cell) {
-      cell.kind = 'heart'
-      heart = { r: cell.r, c: cell.c }
-    }
-  }
+  // Level heart pickups removed — health comes from the power-up system.
+  const heart = null
 
   // Moving blue obstacle boxes: slide back and forth across a row (left<->right)
   // or column (top<->bottom). Count + speed grow per level.
@@ -272,19 +265,63 @@ function stripGoal(board) {
   return { ...board, cells }
 }
 
-// Ensure the inner edge has walkable tiles so the ball can cross the seam.
-function strengthenSeam(cells, gridN, edge) {
-  const col = edge === 'right' ? gridN - 1 : 0
+// Seam gaps at board joins scale with co-op level (see COOP.seam in config).
+export function coopSeamGapCount(level) {
+  const { fullBridgeMaxLevel, oneGapMaxLevel, gapRampStartLevel, gapRampEvery, maxSeamGaps } =
+    COOP.seam
+  if (level <= fullBridgeMaxLevel) return 0
+  if (level <= oneGapMaxLevel) return 1
+  const extra = 2 + Math.floor((level - gapRampStartLevel) / gapRampEvery)
+  return Math.min(extra, maxSeamGaps)
+}
+
+function pickSeamGapRows(gridN, count, rng, protectedRows = new Set()) {
+  if (count <= 0) return []
+  let candidates = []
   for (let r = 0; r < gridN; r++) {
-    cells[r][col].exists = true
-    if (cells[r][col].kind === 'gap') cells[r][col].kind = 'ground'
+    if (!protectedRows.has(r)) candidates.push(r)
+  }
+  if (candidates.length < count) {
+    candidates = []
+    for (let r = 0; r < gridN; r++) candidates.push(r)
+  }
+  const rows = []
+  for (let i = 0; i < count && candidates.length; i++) {
+    const idx = Math.floor(rng() * candidates.length)
+    rows.push(candidates.splice(idx, 1)[0])
+  }
+  rows.sort((a, b) => a - b)
+  return rows
+}
+
+function seamProtectedRows(board, edge, gridN) {
+  const col = edge === 'right' ? gridN - 1 : 0
+  const rows = new Set()
+  if (board.start?.c === col) rows.add(board.start.r)
+  if (board.hole?.c === col) rows.add(board.hole.r)
+  return rows
+}
+
+/** Walkable seam tiles except aligned gap rows (same rows on both meeting edges). */
+function applySeamEdge(cells, gridN, edge, gapRows) {
+  const col = edge === 'right' ? gridN - 1 : 0
+  const gapSet = new Set(gapRows)
+  for (let r = 0; r < gridN; r++) {
+    if (gapSet.has(r)) {
+      cells[r][col].exists = false
+      cells[r][col].kind = 'gap'
+      cells[r][col].height = 0
+    } else {
+      cells[r][col].exists = true
+      if (cells[r][col].kind === 'gap') cells[r][col].kind = 'ground'
+    }
   }
 }
 
-function cloneBoardData(template, position, boardIndex, theme, playerCount) {
+function cloneBoardData(template, position, boardIndex, theme, playerCount, seamEdges = {}) {
   const cells = deepCloneCells(template.cells)
-  if (boardIndex > 0) strengthenSeam(cells, template.gridN, 'left')
-  if (boardIndex < playerCount - 1) strengthenSeam(cells, template.gridN, 'right')
+  if (seamEdges.left != null) applySeamEdge(cells, template.gridN, 'left', seamEdges.left)
+  if (seamEdges.right != null) applySeamEdge(cells, template.gridN, 'right', seamEdges.right)
   return {
     level: template.level,
     gridN: template.gridN,
@@ -313,6 +350,25 @@ export function generateCoopLevel(level, roomSeed = null, playerCount = 2) {
     rawBoards.push(generateLevel(level, seed))
   }
 
+  const seamGapCount = coopSeamGapCount(level)
+  const seamSeed =
+    roomSeed != null
+      ? (Math.imul(roomSeed ^ level, 0xc2b2ae35) >>> 0)
+      : (Math.imul(level, 0x9e3779b9) >>> 0)
+  const seamRng = mulberry32(seamSeed)
+  const seamEdgesByBoard = rawBoards.map(() => ({ left: null, right: null }))
+
+  for (let i = 0; i < n - 1; i++) {
+    const gridN = rawBoards[i].gridN
+    const protectedRows = new Set([
+      ...seamProtectedRows(rawBoards[i], 'right', gridN),
+      ...seamProtectedRows(rawBoards[i + 1], 'left', gridN),
+    ])
+    const gapRows = pickSeamGapRows(gridN, seamGapCount, seamRng, protectedRows)
+    seamEdgesByBoard[i].right = gapRows
+    seamEdgesByBoard[i + 1].left = gapRows
+  }
+
   const extents = rawBoards.map((b) => b.gridN * b.cell)
   const gap = COOP.boardGap
   let totalWidth = extents.reduce((sum, e) => sum + e, 0) + gap * (n - 1)
@@ -328,7 +384,11 @@ export function generateCoopLevel(level, roomSeed = null, playerCount = 2) {
         [centerX, 0, 0],
         i,
         COOP_BOARD_THEMES[i],
-        n
+        n,
+        {
+          left: seamEdgesByBoard[i].left ?? undefined,
+          right: seamEdgesByBoard[i].right ?? undefined,
+        }
       )
     )
   }
