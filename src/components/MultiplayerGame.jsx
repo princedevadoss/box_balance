@@ -21,7 +21,7 @@ import {
 } from './PaneHud'
 
 export function MultiplayerGame({ room, onExit }) {
-  const { code, seed, peerState, sendState, disconnect, phase, playerName, peerName } = room
+  const { code, seed, peerState, peerStateRef, sendState, disconnect, phase, playerName, peerName } = room
   const game = useGame({ roomSeed: seed })
   const split = useSplitResize(50)
   const localLabel = playerName || 'You'
@@ -167,7 +167,7 @@ export function MultiplayerGame({ room, onExit }) {
 
               <Canvas shadows camera={{ position: CAMERA.position, fov: CAMERA.fov }} className="split-canvas">
                 <color attach="background" args={[COLORS.background]} />
-                <RemoteScene peerState={peerState} roomSeed={seed} />
+                <RemoteScene peerState={peerState} peerStateRef={peerStateRef} roomSeed={seed} />
               </Canvas>
             </div>
           </>

@@ -26,6 +26,7 @@ export function usePowerUpInventory({
   runId,
   lifeRetrySpawn = false,
   authoritative = true,
+  onPowerUpRequest,
   onFlash,
   onHeal,
 }) {
@@ -267,21 +268,22 @@ export function usePowerUpInventory({
   }, [])
 
   useEffect(() => {
-    if (!authoritative) return
     const onKey = (e) => {
       if (e.repeat) return
       if (statusRef.current !== 'playing') return
       if (e.code === 'Space') {
         e.preventDefault()
-        activateSelected()
+        if (authoritative) activateSelected()
+        else onPowerUpRequest?.({ type: 'powerup_activate' })
       } else if (e.code === 'Tab') {
         e.preventDefault()
-        cycleSelected()
+        if (authoritative) cycleSelected()
+        else onPowerUpRequest?.({ type: 'powerup_cycle' })
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [authoritative, activateSelected, cycleSelected])
+  }, [authoritative, activateSelected, cycleSelected, onPowerUpRequest])
 
   const applyPowerUpSync = useCallback((peer) => {
     if (peer.inventory) setInventory(peer.inventory)

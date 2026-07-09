@@ -2,10 +2,10 @@ import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { ContactShadows } from '@react-three/drei'
 import * as THREE from 'three'
-import { CAMERA, BALL } from '../config'
+import { CAMERA } from '../config'
 import { generateLevel } from '../level'
-import { useNizhenTexture } from '../textures'
 import { Board } from './Board'
+import { NetworkBall } from './NetworkBall'
 import { SceneLighting } from './SceneLighting'
 import { isEffectActive } from '../powerUps'
 
@@ -19,50 +19,26 @@ function RemoteCameraRig({ extent }) {
   return null
 }
 
-function RemoteBall({ positionRef, level, scale = 1 }) {
-  const meshRef = useRef(null)
-  const texture = useNizhenTexture(level)
-  const target = useRef(new THREE.Vector3())
-
-  useFrame(() => {
-    const mesh = meshRef.current
-    const pos = positionRef.current
-    if (!mesh || !pos) return
-    target.current.set(pos[0], pos[1], pos[2])
-    mesh.position.lerp(target.current, 0.35)
-  })
-
-  return (
-    <mesh ref={meshRef} castShadow key={`remote-ball-${level}-${scale}`} scale={[scale, scale, scale]}>
-      <sphereGeometry args={[BALL.radius, 32, 32]} />
-      <meshStandardMaterial
-        key={`remote-ball-mat-${level}`}
-        map={texture}
-        color="#ffffff"
-        metalness={BALL.metalness}
-        roughness={BALL.roughness}
-        envMapIntensity={0.25}
-      />
-    </mesh>
-  )
-}
-
-export function RemoteScene({ peerState, roomSeed }) {
+export function RemoteScene({ peerState, peerStateRef, roomSeed }) {
   const level = peerState?.level ?? 1
   const data = useMemo(() => generateLevel(level, roomSeed), [level, roomSeed])
   const extent = data.gridN * data.cell
 
   const rotationRef = useRef([0, 0, 0, 1])
-  const ballRef = useRef([0, 0, 4])
+  const ballStateRef = useRef(null)
   const smoothQuat = useRef(new THREE.Quaternion())
 
   useFrame(() => {
-    if (!peerState?.board) return
+    const packet = peerStateRef?.current
+    const liveState = packet?.state ?? peerState
+    const receivedAt = packet?.receivedAt ?? performance.now()
+    if (!liveState?.board) return
+
     smoothQuat.current.set(
-      peerState.board[0],
-      peerState.board[1],
-      peerState.board[2],
-      peerState.board[3]
+      liveState.board[0],
+      liveState.board[1],
+      liveState.board[2],
+      liveState.board[3]
     )
     rotationRef.current = [
       smoothQuat.current.x,
@@ -70,7 +46,17 @@ export function RemoteScene({ peerState, roomSeed }) {
       smoothQuat.current.z,
       smoothQuat.current.w,
     ]
-    if (peerState.ball) ballRef.current = peerState.ball
+
+    if (liveState.ball) {
+      ballStateRef.current = {
+        pos: liveState.ball,
+        vel: liveState.ballVel,
+        angVel: liveState.ballAngVel,
+        rot: liveState.ballRot,
+        runId: liveState.runId,
+        receivedAt,
+      }
+    }
   })
 
   const status = peerState?.status ?? 'countdown'
@@ -95,7 +81,14 @@ export function RemoteScene({ peerState, roomSeed }) {
         worldPickup={worldPickup}
         boardIndex={0}
       />
-      <RemoteBall positionRef={ballRef} level={level} scale={shrinkScale} />
+      <NetworkBall
+        stateRef={ballStateRef}
+        level={level}
+        status={status}
+        spawn={[0, 0, 4]}
+        runId={peerState?.runId ?? 0}
+        radiusScale={shrinkScale}
+      />
       <ContactShadows position={[0, -0.65, 0]} opacity={0.35} scale={extent * 1.6} blur={2.5} far={12} />
     </>
   )

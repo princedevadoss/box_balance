@@ -4,6 +4,7 @@ import { MSG } from '../net/protocol.js'
 
 const EPS = 0.002
 const BOARD_INTERVAL = 1 / 30
+const BALL_INTERVAL = 1 / 60
 
 function changed(a, b) {
   if (!a || !b) return a !== b
@@ -96,6 +97,10 @@ export function StateBroadcaster({
     }
 
     if (includeBall) {
+      acc.current += delta
+      const motionChanged = physicsChanged(snapshot, lastPhysics.current, includeBall)
+      if (!metaChanged && !motionChanged && acc.current < BALL_INTERVAL) return
+      acc.current = 0
       metaStamp.current = metaKey
       lastPhysics.current = snapshot
       onSend(snapshot)

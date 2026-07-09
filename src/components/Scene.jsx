@@ -10,6 +10,7 @@ import { Detector } from './Detector'
 import { SceneLighting } from './SceneLighting'
 import { BallJump } from './BallJump'
 import { BallFlyController } from './BallFlyController'
+import { LocalFlyAim } from './CoopFlyAim'
 import { StateBroadcaster } from './StateBroadcaster'
 import { PowerUpCollector } from './PowerUpCollector'
 import { PowerUpPhysicsBridge } from './PowerUpPhysicsBridge'
@@ -50,6 +51,7 @@ export function Scene({
 }) {
   const boardRef = useRef(null)
   const ballRef = useRef(null)
+  const flyTargetRef = useRef(null)
   const extent = data.gridN * data.cell
   const [sx, sz] = cellCenter(data.start.r, data.start.c, data.gridN, data.cell)
   const spawn = [sx, data.thickness / 2 + BALL.spawnHeight, sz]
@@ -62,7 +64,19 @@ export function Scene({
     <>
       <SceneLighting />
       <CameraRig extent={extent} />
-      <BallFlyController ballRef={ballRef} boardRef={boardRef} flyActive={flyActive} status={status} />
+      <LocalFlyAim
+        flyActive={flyActive}
+        status={status}
+        boardRef={boardRef}
+        boardData={data}
+        flyTargetRef={flyTargetRef}
+      />
+      <BallFlyController
+        ballRef={ballRef}
+        flyActive={flyActive}
+        status={status}
+        targetWorldRef={flyTargetRef}
+      />
 
       <Physics key={runId} gravity={PHYSICS.gravity} paused={status === 'paused'}>
         <BallJump ballRef={ballRef} status={status} />

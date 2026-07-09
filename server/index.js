@@ -147,6 +147,7 @@ wss.on('connection', (ws) => {
               type: 'PEER_BOARD',
               slot: info.slot,
               board: msg.state?.board,
+              flyAim: msg.state?.flyAim,
             })
           }
         }

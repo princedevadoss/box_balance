@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { connectSocket } from '../net/socket.js'
 import { MSG } from '../net/protocol.js'
+import { peerMetaKey } from '../net/peerMeta.js'
 import { sanitizeName } from '../net/names.js'
 
 function peerNameFromPlayers(players, slot) {
@@ -25,8 +26,10 @@ export function useRoom() {
   const playerNameRef = useRef('')
   const slotRef = useRef(0)
   const peerBoardsRef = useRef({})
+  const peerFlyAimRef = useRef({})
   const peerEventRef = useRef(null)
   const peerStateRef = useRef(null)
+  const peerMetaStamp = useRef('')
 
   const cleanup = useCallback(() => {
     socketRef.current?.close()
@@ -75,12 +78,18 @@ export function useRoom() {
       }
       if (msg.type === MSG.PEER_STATE) {
         peerStateRef.current = { state: msg.state, receivedAt: performance.now() }
-        setPeerState(msg.state)
+        const metaKey = peerMetaKey(msg.state)
+        if (metaKey !== peerMetaStamp.current) {
+          peerMetaStamp.current = metaKey
+          setPeerState(msg.state)
+        }
         if (msg.state?.name) setPeerName(msg.state.name)
         return
       }
       if (msg.type === MSG.PEER_BOARD) {
         peerBoardsRef.current[msg.slot] = msg.board
+        if (msg.flyAim) peerFlyAimRef.current[msg.slot] = msg.flyAim
+        else delete peerFlyAimRef.current[msg.slot]
         return
       }
       if (msg.type === MSG.PEER_EVENT) {
@@ -91,6 +100,8 @@ export function useRoom() {
         setPhase('left')
         setPeerState(null)
         peerStateRef.current = null
+        peerMetaStamp.current = ''
+        peerFlyAimRef.current = {}
         return
       }
       if (msg.type === MSG.ERROR) {
@@ -107,7 +118,9 @@ export function useRoom() {
     setError('')
     setPeerState(null)
     peerStateRef.current = null
+    peerMetaStamp.current = ''
     peerBoardsRef.current = {}
+    peerFlyAimRef.current = {}
     peerEventRef.current = null
 
     const socket = connectSocket({
@@ -190,7 +203,9 @@ export function useRoom() {
     playerNameRef.current = ''
     setPeerState(null)
     peerStateRef.current = null
+    peerMetaStamp.current = ''
     peerBoardsRef.current = {}
+    peerFlyAimRef.current = {}
     peerEventRef.current = null
     setError('')
   }, [cleanup])
@@ -215,6 +230,7 @@ export function useRoom() {
     peerState,
     peerStateRef,
     peerBoardsRef,
+    peerFlyAimRef,
     peerEventRef,
     error,
     isHost,

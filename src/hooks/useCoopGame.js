@@ -4,7 +4,7 @@ import { GAME } from '../config'
 import { initAudio, playClick, playWin, playFail, playLava } from '../audio'
 import { usePowerUpInventory } from './usePowerUpInventory'
 
-export function useCoopGame({ roomSeed = null, playerCount = 2, authoritative = true } = {}) {
+export function useCoopGame({ roomSeed = null, playerCount = 2, authoritative = true, onPowerUpRequest } = {}) {
   const [status, setStatus] = useState('ready')
   const [countdown, setCountdown] = useState(GAME.countdown)
   const [level, setLevel] = useState(1)
@@ -24,6 +24,7 @@ export function useCoopGame({ roomSeed = null, playerCount = 2, authoritative = 
     runId,
     lifeRetrySpawn,
     authoritative,
+    onPowerUpRequest,
     onFlash: setFlash,
     onHeal: () => setLives((l) => l + 1),
   })

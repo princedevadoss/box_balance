@@ -8,11 +8,13 @@ import { boardSpawnPosition } from '../level'
 import { coopCameraLayout } from '../coopCamera'
 import { Board } from './Board'
 import { Ball } from './Ball'
+import { NetworkBall } from './NetworkBall'
 import { CoopDetector } from './CoopDetector'
 import { StateBroadcaster } from './StateBroadcaster'
 import { SceneLighting } from './SceneLighting'
 import { BallJump } from './BallJump'
 import { BallFlyController } from './BallFlyController'
+import { CoopFlyAim } from './CoopFlyAim'
 import { PowerUpCollector } from './PowerUpCollector'
 import { PowerUpPhysicsBridge } from './PowerUpPhysicsBridge'
 
@@ -80,6 +82,24 @@ function PeerNetworkBridge({ peerState, peerStateRef, isHost, peerBoardsRef, net
   return null
 }
 
+function CoopPeerInputBridge({ isHost, peerEventRef, onCycle, onActivate }) {
+  const lastEventKey = useRef('')
+
+  useFrame(() => {
+    if (!isHost || !peerEventRef?.current) return
+    const evt = peerEventRef.current
+    const type = evt.event?.type
+    if (type !== 'powerup_cycle' && type !== 'powerup_activate') return
+    const key = `${evt.slot ?? 0}:${evt.ts ?? 0}:${type}`
+    if (key === lastEventKey.current) return
+    lastEventKey.current = key
+    if (type === 'powerup_cycle') onCycle?.()
+    if (type === 'powerup_activate') onActivate?.()
+  })
+
+  return null
+}
+
 export const CoopScene = memo(function CoopScene({
   data,
   status,
@@ -98,16 +118,21 @@ export const CoopScene = memo(function CoopScene({
   peerState,
   peerStateRef,
   peerBoardsRef,
+  peerFlyAimRef,
   peerEventRef,
   onWin,
   onFail,
   onHeart,
   onSend,
   onJumpRequest,
+  onPeerPowerUpCycle,
+  onPeerPowerUpActivate,
   getSnapshot,
 }) {
   const ballRef = useRef(null)
   const networkBallRef = useRef(null)
+  const flyTargetRef = useRef(null)
+  const flyAimOutRef = useRef(null)
   const boardRefs = useRef([])
   const boardRotRefs = useRef([])
 
@@ -128,9 +153,14 @@ export const CoopScene = memo(function CoopScene({
     (physics) => {
       const peerBoards = { ...peerBoardsRef?.current }
       if (isHost && physics.board) peerBoards[slot] = physics.board
-      return getSnapshot({ ...physics, peerBoards })
+      const flyAim = flyAimOutRef.current
+      return getSnapshot({
+        ...physics,
+        peerBoards,
+        ...(flyActive ? { flyAim: flyAim ?? null } : {}),
+      })
     },
-    [getSnapshot, isHost, slot, peerBoardsRef]
+    [getSnapshot, isHost, slot, peerBoardsRef, flyActive]
   )
 
   return (
@@ -146,9 +176,33 @@ export const CoopScene = memo(function CoopScene({
         boardRotRefs={boardRotRefs}
         runId={runId}
       />
+      <CoopFlyAim
+        flyActive={flyActive}
+        status={status}
+        data={data}
+        slot={slot}
+        isHost={isHost}
+        boardRefs={boardRefs}
+        ballRef={ballRef}
+        networkBallRef={networkBallRef}
+        peerFlyAimRef={peerFlyAimRef}
+        flyTargetRef={flyTargetRef}
+        flyAimOutRef={flyAimOutRef}
+      />
       {isHost && (
-        <BallFlyController ballRef={ballRef} boardRef={boardRefs.current[slot]} flyActive={flyActive} status={status} />
+        <BallFlyController
+          ballRef={ballRef}
+          flyActive={flyActive}
+          status={status}
+          targetWorldRef={flyTargetRef}
+        />
       )}
+      <CoopPeerInputBridge
+        isHost={isHost}
+        peerEventRef={peerEventRef}
+        onCycle={onPeerPowerUpCycle}
+        onActivate={onPeerPowerUpActivate}
+      />
 
       <Physics key={runId} gravity={PHYSICS.gravity} paused={status === 'paused'}>
         <BallJump
@@ -156,7 +210,7 @@ export const CoopScene = memo(function CoopScene({
           status={status}
           isHost={isHost}
           onJumpRequest={onJumpRequest}
-          peerEventRef={peerEventRef}
+          peerEventRef={isHost ? peerEventRef : undefined}
         />
         {processPowerUpPhysics && <PowerUpPhysicsBridge processPowerUpPhysics={processPowerUpPhysics} />}
         {boards.map((board, i) => {
@@ -179,17 +233,30 @@ export const CoopScene = memo(function CoopScene({
             />
           )
         })}
-        <Ball
-          bodyRef={ballRef}
-          status={status}
-          spawn={ballSpawn}
-          level={data.level}
-          runId={runId}
-          tint="primary"
-          flyActive={isHost ? flyActive : false}
-          radiusScale={shrinkScale}
-          networkBallRef={isHost ? null : networkBallRef}
-        />
+        {isHost ? (
+          <Ball
+            bodyRef={ballRef}
+            status={status}
+            spawn={ballSpawn}
+            level={data.level}
+            runId={runId}
+            tint="primary"
+            flyActive={flyActive}
+            radiusScale={shrinkScale}
+          />
+        ) : (
+          <NetworkBall
+            stateRef={networkBallRef}
+            status={status}
+            spawn={ballSpawn}
+            level={data.level}
+            runId={runId}
+            tint="primary"
+            radiusScale={shrinkScale}
+            flyActive={flyActive}
+            flyOverrideRef={flyAimOutRef}
+          />
+        )}
         {isHost && (
           <CoopDetector
             key={runId}

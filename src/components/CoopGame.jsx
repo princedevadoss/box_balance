@@ -23,6 +23,7 @@ export function CoopGame({ room, onExit }) {
     peerState,
     peerStateRef,
     peerBoardsRef,
+    peerFlyAimRef,
     peerEventRef,
     sendState,
     sendEvent,
@@ -31,8 +32,24 @@ export function CoopGame({ room, onExit }) {
     isHost,
   } = room
 
+  const handleJump = useCallback(() => {
+    sendEvent({ type: 'jump' })
+  }, [sendEvent])
+
+  const handlePowerUpRequest = useCallback(
+    (event) => {
+      sendEvent(event)
+    },
+    [sendEvent]
+  )
+
   const playerCount = Math.max(2, players.length || 2)
-  const game = useCoopGame({ roomSeed: seed, playerCount, authoritative: isHost })
+  const game = useCoopGame({
+    roomSeed: seed,
+    playerCount,
+    authoritative: isHost,
+    onPowerUpRequest: isHost ? undefined : handlePowerUpRequest,
+  })
 
   useEffect(() => {
     if (phase === 'matched' && isHost) game.start()
@@ -44,10 +61,6 @@ export function CoopGame({ room, onExit }) {
     game.syncFromHost(peerState)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [peerState, isHost])
-
-  const handleJump = useCallback(() => {
-    sendEvent({ type: 'jump' })
-  }, [sendEvent])
 
   const handleExit = () => {
     disconnect()
@@ -112,12 +125,15 @@ export function CoopGame({ room, onExit }) {
           peerState={peerState}
           peerStateRef={peerStateRef}
           peerBoardsRef={peerBoardsRef}
+          peerFlyAimRef={peerFlyAimRef}
           peerEventRef={peerEventRef}
           onWin={game.handleWin}
           onFail={game.handleFail}
           onHeart={game.handleHeart}
           onSend={sendState}
           onJumpRequest={handleJump}
+          onPeerPowerUpCycle={isHost ? game.cycleSelected : undefined}
+          onPeerPowerUpActivate={isHost ? game.activateSelected : undefined}
           getSnapshot={game.getSnapshot}
         />
       </Canvas>
