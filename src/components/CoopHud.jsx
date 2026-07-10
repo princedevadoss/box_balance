@@ -1,4 +1,4 @@
-import { COLORS } from '../config'
+import { COLORS, COOP_BOARD_THEMES } from '../config'
 
 export function CoopHud({
   status,
@@ -52,7 +52,7 @@ export function CoopHud({
         <div className="coop-player-strip">
           {boards.map((p, i) => {
             const name = p.name ?? playerLabels[i] ?? `Player ${i + 1}`
-            const themeKey = ['a', 'b', 'c', 'd'][p.slot ?? i]
+            const themeKey = COOP_BOARD_THEMES[(p.slot ?? i) % COOP_BOARD_THEMES.length]
             const color = themeLabels[themeKey] ?? 'board'
             const you = (p.slot ?? i) === slot
             return (

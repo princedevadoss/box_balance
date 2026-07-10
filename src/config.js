@@ -163,6 +163,7 @@ export const POCKET = {
 }
 
 export const COOP = {
+  maxPlayers: 20,
   boardGap: 0, // boards touch edge-to-edge at the seam
   seam: {
     fullBridgeMaxLevel: 4, // levels 1–4: every tile present at each join

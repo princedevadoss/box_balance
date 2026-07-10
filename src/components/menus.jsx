@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { GAME, COLORS } from '../config'
+import { COOP, GAME, COLORS } from '../config'
 import { sanitizeName } from '../net/names'
 
 export function MainMenu({ onSolo, onMultiplayer }) {
@@ -49,7 +49,7 @@ export function ModeLobbyMenu({ mode, onCreate, onJoin, onBack }) {
       <h1>{isCoop ? 'Co-op' : 'Versus'}</h1>
       <p>
         {isCoop
-          ? 'Up to 4 players share one ball across joined boards. The host starts when everyone is ready.'
+          ? `Up to ${COOP.maxPlayers} players share one ball across joined boards. The host starts when everyone is ready.`
           : 'Parallel race on identical boards. Highest score wins when a player is eliminated.'}
       </p>
       <div className="menu-actions">
@@ -155,7 +155,7 @@ export function CoopLobbyScreen({
             </li>
           ))}
         </ol>
-        <p className="coop-lobby-cap">{players.length} / 4 players</p>
+        <p className="coop-lobby-cap">{players.length} / {COOP.maxPlayers} players</p>
       </div>
 
       {isHost ? (

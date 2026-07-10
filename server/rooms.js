@@ -2,7 +2,7 @@ import { generateCode, normalizeCode } from './codes.js'
 import { sanitizeName } from './names.js'
 
 const ROOM_TTL_MS = 30 * 60 * 1000
-const MAX_COOP_PLAYERS = 4
+const MAX_COOP_PLAYERS = 20
 const MAX_VERSUS_PLAYERS = 2
 
 export class RoomManager {
@@ -79,7 +79,7 @@ export class RoomManager {
 
     const max = this.maxPlayers(room.mode)
     if (room.players.length >= max) {
-      return { error: room.mode === 'coop' ? 'This co-op room is full (4 players max).' : 'This room is already full.' }
+      return { error: room.mode === 'coop' ? `This co-op room is full (${MAX_COOP_PLAYERS} players max).` : 'This room is already full.' }
     }
 
     const slot = room.players.length

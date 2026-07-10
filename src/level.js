@@ -340,11 +340,11 @@ function cloneBoardData(template, position, boardIndex, theme, playerCount, seam
   }
 }
 
-// Co-op: N different boards joined edge-to-edge (2–4 players).
+// Co-op: N different boards joined edge-to-edge (2–COOP.maxPlayers players).
 // Odd levels: spawn on board 0, goal on board N-1.
 // Even levels: spawn on board N-1, goal on board 0.
 export function generateCoopLevel(level, roomSeed = null, playerCount = 2, options = {}) {
-  const n = Math.max(2, Math.min(4, playerCount))
+  const n = Math.max(2, Math.min(COOP.maxPlayers, playerCount))
   const rawBoards = []
   for (let i = 0; i < n; i++) {
     const seed =
@@ -385,7 +385,7 @@ export function generateCoopLevel(level, roomSeed = null, playerCount = 2, optio
         rawBoards[i],
         [centerX, 0, 0],
         i,
-        COOP_BOARD_THEMES[i],
+        COOP_BOARD_THEMES[i % COOP_BOARD_THEMES.length],
         n,
         {
           left: seamEdgesByBoard[i].left ?? undefined,

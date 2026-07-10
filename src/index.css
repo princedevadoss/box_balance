@@ -699,6 +699,8 @@ canvas {
   gap: 8px;
   flex-wrap: wrap;
   padding: 0 6px;
+  max-height: 72px;
+  overflow-y: auto;
 }
 
 .coop-player {
@@ -759,6 +761,8 @@ canvas {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  max-height: min(320px, 40vh);
+  overflow-y: auto;
 }
 
 .coop-lobby-list li {
