@@ -1,8 +1,7 @@
 import { useEffect, useRef } from 'react'
-import { useFrame, useThree } from '@react-three/fiber'
 import { ContactShadows } from '@react-three/drei'
 import { Physics } from '@react-three/rapier'
-import { CAMERA, PHYSICS, BALL } from '../config'
+import { PHYSICS, BALL } from '../config'
 import { cellCenter } from '../level'
 import { Board } from './Board'
 import { Ball } from './Ball'
@@ -14,21 +13,9 @@ import { LocalFlyAim } from './CoopFlyAim'
 import { StateBroadcaster } from './StateBroadcaster'
 import { PowerUpCollector } from './PowerUpCollector'
 import { PowerUpPhysicsBridge } from './PowerUpPhysicsBridge'
+import { WaverCollector } from './WaverCollector'
 
-function CameraRig({ extent }) {
-  const { camera } = useThree()
-  const target = useRef({ x: 0, y: 0, z: 0 })
-  useFrame(() => {
-    const ty = extent * 1.15 + 4
-    const tz = extent * 0.95 + 3
-    target.current.x *= 1 - CAMERA.ease
-    target.current.y += (ty - target.current.y) * CAMERA.ease
-    target.current.z += (tz - target.current.z) * CAMERA.ease
-    camera.position.set(target.current.x, target.current.y, target.current.z)
-    camera.lookAt(0, 0, 0)
-  })
-  return null
-}
+import { AdaptiveCameraRig } from './AdaptiveCameraRig'
 
 export function Scene({
   data,
@@ -41,6 +28,9 @@ export function Scene({
   shrinkScale = 1,
   worldPickup = null,
   onWorldCollect,
+  waver = null,
+  onWaverCollect,
+  goalOpen = true,
   registerActivateCtx,
   processPowerUpPhysics,
   onWin,
@@ -48,6 +38,9 @@ export function Scene({
   onHeart,
   onSend,
   getSnapshot,
+  tiltRef = null,
+  canvasJump = true,
+  jumpTriggerRef = null,
 }) {
   const boardRef = useRef(null)
   const ballRef = useRef(null)
@@ -63,7 +56,7 @@ export function Scene({
   return (
     <>
       <SceneLighting />
-      <CameraRig extent={extent} />
+      <AdaptiveCameraRig extent={extent} />
       <LocalFlyAim
         flyActive={flyActive}
         status={status}
@@ -79,7 +72,12 @@ export function Scene({
       />
 
       <Physics key={runId} gravity={PHYSICS.gravity} paused={status === 'paused'}>
-        <BallJump ballRef={ballRef} status={status} />
+        <BallJump
+          ballRef={ballRef}
+          status={status}
+          canvasJump={canvasJump}
+          jumpTriggerRef={jumpTriggerRef}
+        />
         {processPowerUpPhysics && <PowerUpPhysicsBridge processPowerUpPhysics={processPowerUpPhysics} />}
         <Board
           data={data}
@@ -89,7 +87,10 @@ export function Scene({
           patchActive={patchActive}
           ghostActive={ghostActive}
           worldPickup={worldPickup}
+          waver={waver}
+          goalOpen={goalOpen}
           boardIndex={0}
+          tiltRef={tiltRef}
         />
         <Ball
           bodyRef={ballRef}
@@ -108,6 +109,7 @@ export function Scene({
           heartTaken={heartTaken}
           patchActive={patchActive}
           ghostActive={ghostActive}
+          goalOpen={goalOpen}
           onWin={onWin}
           onFail={onFail}
           onHeart={onHeart}
@@ -121,6 +123,16 @@ export function Scene({
             status={status}
             runId={runId}
             onCollect={onWorldCollect}
+          />
+        )}
+        {onWaverCollect && (
+          <WaverCollector
+            data={data}
+            ballRef={ballRef}
+            boardRef={boardRef}
+            waver={waver}
+            status={status}
+            onCollect={onWaverCollect}
           />
         )}
         {onSend && getSnapshot && (

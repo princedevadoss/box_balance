@@ -2,26 +2,24 @@ import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { ContactShadows } from '@react-three/drei'
 import * as THREE from 'three'
-import { CAMERA } from '../config'
 import { generateLevel } from '../level'
+import { readViewport } from '../viewport'
 import { Board } from './Board'
 import { NetworkBall } from './NetworkBall'
+import { AdaptiveCameraRig } from './AdaptiveCameraRig'
 import { SceneLighting } from './SceneLighting'
 import { isEffectActive } from '../powerUps'
 
 function RemoteCameraRig({ extent }) {
-  const target = useRef(new THREE.Vector3())
-  useFrame(({ camera }) => {
-    target.current.set(0, extent * 1.15 + 4, extent * 0.95 + 3)
-    camera.position.lerp(target.current, CAMERA.ease)
-    camera.lookAt(0, 0, 0)
-  })
-  return null
+  return <AdaptiveCameraRig extent={extent} />
 }
 
 export function RemoteScene({ peerState, peerStateRef, roomSeed }) {
   const level = peerState?.level ?? 1
-  const data = useMemo(() => generateLevel(level, roomSeed), [level, roomSeed])
+  const data = useMemo(() => {
+    const { gridCap } = readViewport()
+    return generateLevel(level, roomSeed, { gridCap })
+  }, [level, roomSeed])
   const extent = data.gridN * data.cell
 
   const rotationRef = useRef([0, 0, 0, 1])

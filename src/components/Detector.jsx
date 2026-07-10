@@ -16,6 +16,7 @@ export function Detector({
   heartTaken,
   patchActive = false,
   ghostActive = false,
+  goalOpen = true,
   onWin,
   onFail,
   onHeart,
@@ -95,12 +96,14 @@ export function Detector({
       }
     }
 
-    // Fell below the deck: win if inside the goal pocket, otherwise a miss.
+    // Fell below the deck: win if inside the open goal pocket, otherwise a miss.
     if (local.y > -0.4 && t.y > GAME.fallY) return
     if (ghostActive && t.y > GAME.fallY) return
     fired.current = true
     const inHole =
-      Math.abs(local.x - holeX) < cell * 0.6 && Math.abs(local.z - holeZ) < cell * 0.6
+      goalOpen &&
+      Math.abs(local.x - holeX) < cell * 0.6 &&
+      Math.abs(local.z - holeZ) < cell * 0.6
     if (inHole) onWin()
     else onFail('fell')
   })

@@ -15,6 +15,22 @@ export const GAME = {
   flashMs: 1500, // how long banner messages linger
 }
 
+// Per-level walking character bonus (solo + co-op).
+export const WAVER = {
+  model: '/models/walking.fbx',
+  durationSec: 8, // walk duration across walkTiles
+  scoreBonus: 1000,
+  spawnOffsetMin: 3, // |Δrow| and |Δcol| from ball must be in [min, max]
+  spawnOffsetMax: 5,
+  walkTiles: 4, // walk this many grids during the appearance
+  pickupRadius: 2.0,
+  hoverY: 0.05,
+  modelHeight: 1.55, // fit character height in world units
+  // Random delay after the level enters "playing" (0–20s)
+  spawnDelayMinSec: 0,
+  spawnDelayMaxSec: 20,
+}
+
 // Runtime patch power-up: seals danger gaps and lava for a limited time.
 export const PATCH = {
   durationSec: 30,
@@ -93,6 +109,8 @@ export const POWERUP = {
 export const BOARD = {
   maxTilt: 0.32, // radians at full mouse deflection
   tiltEase: 0.15, // slerp factor toward the target tilt each frame
+  // Spirit-level HUD: board is "stable" when both tilt axes stay under this (degrees).
+  stableDeg: 1.5,
 }
 
 export const BALL = {

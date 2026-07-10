@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { generateLevel } from '../level'
 import { GAME } from '../config'
 import { initAudio, playClick, playWin, playFail, playLava } from '../audio'
 import { usePowerUpInventory } from './usePowerUpInventory'
+import { useWaverBonus } from './useWaverBonus'
 
-export function useGame({ roomSeed = null } = {}) {
+export function useGame({ roomSeed = null, gridCap = null, keyboardShortcuts = true } = {}) {
   const [status, setStatus] = useState('ready')
   const [countdown, setCountdown] = useState(GAME.countdown)
   const [level, setLevel] = useState(1)
@@ -12,7 +13,10 @@ export function useGame({ roomSeed = null } = {}) {
   const [best, setBest] = useState(0)
   const [lives, setLives] = useState(GAME.startLives)
   const [timeLeft, setTimeLeft] = useState(GAME.levelTime)
-  const [data, setData] = useState(() => generateLevel(1, roomSeed))
+  const gridCapRef = useRef(gridCap)
+  gridCapRef.current = gridCap
+
+  const [data, setData] = useState(() => generateLevel(1, roomSeed, { gridCap }))
   const [runId, setRunId] = useState(0)
   const [heartTaken, setHeartTaken] = useState(false)
   const [lifeRetrySpawn, setLifeRetrySpawn] = useState(false)
@@ -25,8 +29,38 @@ export function useGame({ roomSeed = null } = {}) {
     runId,
     lifeRetrySpawn,
     authoritative: true,
+    keyboardShortcuts,
     onFlash: setFlash,
     onHeal: () => setLives((l) => l + 1),
+  })
+
+  const ballPosCtxRef = useRef(null)
+  const registerPowerUpCtx = powerUps.registerActivateCtx
+  const registerActivateCtx = useCallback(
+    (ctx) => {
+      ballPosCtxRef.current = ctx
+      registerPowerUpCtx(ctx)
+    },
+    [registerPowerUpCtx]
+  )
+
+  const getBallPosition = useCallback(() => {
+    const ball = ballPosCtxRef.current?.ballRef?.current
+    if (!ball) return null
+    const t = ball.translation()
+    return { x: t.x, z: t.z }
+  }, [])
+
+  const waverBonus = useWaverBonus({
+    data,
+    status,
+    level,
+    runId,
+    lifeRetry: lifeRetrySpawn,
+    authoritative: true,
+    onFlash: setFlash,
+    onScore: (pts) => setScore((s) => s + pts),
+    getBallPosition,
   })
 
   const timeRef = useRef(timeLeft)
@@ -86,7 +120,7 @@ export function useGame({ roomSeed = null } = {}) {
   }, [])
 
   const loadLevel = (lvl, { resetHeart = true, lifeRetry = false } = {}) => {
-    setData(generateLevel(lvl, roomSeed))
+    setData(generateLevel(lvl, roomSeed, { gridCap: gridCapRef.current }))
     setTimeLeft(GAME.levelTime)
     if (resetHeart) setHeartTaken(false)
     setLifeRetrySpawn(lifeRetry)
@@ -107,6 +141,7 @@ export function useGame({ roomSeed = null } = {}) {
     setLives(GAME.startLives)
     setFailReason('')
     powerUps.resetPowerUps()
+    waverBonus.resetSession()
     beginCountdown(1)
   }
 
@@ -163,12 +198,15 @@ export function useGame({ roomSeed = null } = {}) {
     setLevel(1)
     setLives(GAME.startLives)
     setFailReason('')
+    powerUps.resetPowerUps()
+    waverBonus.resetSession()
     loadLevel(1)
   }
 
   const getSnapshot = (physics) => ({
     ...physics,
     ...powerUps.getPowerUpSnapshot(),
+    ...waverBonus.getWaverSnapshot(),
     level: levelRef.current,
     lives: livesRef.current,
     score: scoreRef.current,
@@ -194,6 +232,10 @@ export function useGame({ roomSeed = null } = {}) {
     flash,
     failReason,
     ...powerUps,
+    registerActivateCtx,
+    waver: waverBonus.waver,
+    goalOpen: waverBonus.goalOpen,
+    handleWaverCollect: waverBonus.handleWaverCollect,
     start,
     resume,
     exitToMenu,

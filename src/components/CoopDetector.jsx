@@ -28,6 +28,7 @@ export function CoopDetector({
   heartTaken,
   patchActive = false,
   ghostActive = false,
+  goalOpen = true,
   onWin,
   onFail,
   onHeart,
@@ -154,6 +155,7 @@ export function CoopDetector({
 
     const [holeX, holeZ] = boardHoleLocal(goalBoard)
     const inHole =
+      goalOpen &&
       Math.abs(local.x - holeX) < goalBoard.cell * 0.6 &&
       Math.abs(local.z - holeZ) < goalBoard.cell * 0.6
 

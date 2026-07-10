@@ -1,11 +1,11 @@
-import { memo, useCallback, useEffect, useMemo, useRef } from 'react'
+import { memo, useCallback, useEffect, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { ContactShadows } from '@react-three/drei'
 import { Physics } from '@react-three/rapier'
 import * as THREE from 'three'
 import { CAMERA, PHYSICS } from '../config'
 import { boardSpawnPosition } from '../level'
-import { coopCameraLayout } from '../coopCamera'
+import { coopCameraLayout, readViewport, cameraFitForExtent } from '../viewport'
 import { Board } from './Board'
 import { Ball } from './Ball'
 import { NetworkBall } from './NetworkBall'
@@ -17,14 +17,43 @@ import { BallFlyController } from './BallFlyController'
 import { CoopFlyAim } from './CoopFlyAim'
 import { PowerUpCollector } from './PowerUpCollector'
 import { PowerUpPhysicsBridge } from './PowerUpPhysicsBridge'
+import { WaverCollector } from './WaverCollector'
 
 function CoopCameraRig({ slot, boards }) {
-  const { camera } = useThree()
+  const { camera, size } = useThree()
   const targetPos = useRef(new THREE.Vector3())
   const lookAt = useRef(new THREE.Vector3())
-  const layout = useMemo(() => coopCameraLayout(slot, boards), [slot, boards])
+  const defaultFov = useRef(CAMERA.fov)
 
   useFrame(() => {
+    const viewport = readViewport()
+    const myBoard = boards[slot]
+    const myX = myBoard?.position?.[0] ?? 0
+    const myExtent = (myBoard?.gridN ?? 6) * (myBoard?.cell ?? 1.6)
+    const aspect = size.width / Math.max(size.height, 1)
+
+    if (viewport.isMobile) {
+      // Frame the local board fully; slight extra margin shows a peek of neighbor boards.
+      const peek = viewport.portrait ? 1.12 : 1.08
+      const fit = cameraFitForExtent(myExtent * peek, aspect, viewport.portrait, 0.92)
+      targetPos.current.set(myX, fit.y, fit.z)
+      lookAt.current.set(myX, 0, 0)
+      camera.position.lerp(targetPos.current, CAMERA.ease)
+      camera.lookAt(lookAt.current)
+      const targetFov = viewport.portrait ? 54 : 50
+      if (Math.abs(camera.fov - targetFov) > 0.05) {
+        camera.fov += (targetFov - camera.fov) * 0.12
+        camera.updateProjectionMatrix()
+      }
+      return
+    }
+
+    if (Math.abs(camera.fov - defaultFov.current) > 0.05) {
+      camera.fov += (defaultFov.current - camera.fov) * 0.12
+      camera.updateProjectionMatrix()
+    }
+
+    const layout = coopCameraLayout(slot, boards, viewport)
     targetPos.current.set(...layout.position)
     lookAt.current.set(...layout.lookAt)
     camera.position.lerp(targetPos.current, CAMERA.ease)
@@ -111,6 +140,9 @@ export const CoopScene = memo(function CoopScene({
   shrinkScale = 1,
   worldPickup = null,
   onWorldCollect,
+  waver = null,
+  onWaverCollect,
+  goalOpen = true,
   registerActivateCtx,
   processPowerUpPhysics,
   slot,
@@ -128,6 +160,9 @@ export const CoopScene = memo(function CoopScene({
   onPeerPowerUpCycle,
   onPeerPowerUpActivate,
   getSnapshot,
+  tiltRef = null,
+  canvasJump = true,
+  jumpTriggerRef = null,
 }) {
   const ballRef = useRef(null)
   const networkBallRef = useRef(null)
@@ -211,6 +246,8 @@ export const CoopScene = memo(function CoopScene({
           isHost={isHost}
           onJumpRequest={onJumpRequest}
           peerEventRef={isHost ? peerEventRef : undefined}
+          canvasJump={canvasJump}
+          jumpTriggerRef={jumpTriggerRef}
         />
         {processPowerUpPhysics && <PowerUpPhysicsBridge processPowerUpPhysics={processPowerUpPhysics} />}
         {boards.map((board, i) => {
@@ -228,8 +265,11 @@ export const CoopScene = memo(function CoopScene({
               position={board.position}
               control={isLocal ? 'local' : 'network'}
               rotationRef={isLocal ? null : boardRotRefs.current[i]}
+              tiltRef={isLocal ? tiltRef : null}
               boardIndex={idx}
               worldPickup={worldPickup}
+              waver={waver}
+              goalOpen={goalOpen}
             />
           )
         })}
@@ -267,6 +307,7 @@ export const CoopScene = memo(function CoopScene({
             heartTaken={heartTaken}
             patchActive={patchActive}
             ghostActive={ghostActive}
+            goalOpen={goalOpen}
             onWin={onWin}
             onFail={onFail}
             onHeart={onHeart}
@@ -282,6 +323,16 @@ export const CoopScene = memo(function CoopScene({
             status={status}
             runId={runId}
             onCollect={onWorldCollect}
+          />
+        )}
+        {isHost && onWaverCollect && (
+          <WaverCollector
+            data={data}
+            ballRef={ballRef}
+            boardRefs={boardRefs}
+            waver={waver}
+            status={status}
+            onCollect={onWaverCollect}
           />
         )}
         {onSend && getSnapshot && (

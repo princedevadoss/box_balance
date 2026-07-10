@@ -15,6 +15,7 @@ export function Hud({
   exitToMenu,
   showBackOnReady = false,
   onBack,
+  isMobile = false,
 }) {
   const heartsDisplay = '♥'.repeat(Math.min(lives, 5)) + (lives > 5 ? ` ×${lives}` : '')
 
@@ -55,7 +56,9 @@ export function Hud({
       )}
 
       {status === 'playing' && (
-        <div className="pause-hint">ESC pause · Tab switch power-up · Space use</div>
+        <div className="pause-hint">
+          {isMobile ? 'Drag to tilt · Icon buttons: change / use / jump' : 'ESC pause · Tab switch power-up · Space use'}
+        </div>
       )}
 
       {(status === 'ready' || status === 'over' || status === 'paused') && (

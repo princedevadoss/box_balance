@@ -9,6 +9,7 @@ import { AirEffect, LavaEffect } from './effects'
 import { PocketTile } from './PocketTile'
 import { MovingBox } from './MovingBox'
 import { PowerUpPickup } from './PowerUpPickup'
+import { WaverCharacter } from './WaverCharacter'
 import { pickupLocalPosition } from '../powerUps'
 
 // One kinematic body holding every tile collider. colliders={false} so
@@ -22,14 +23,18 @@ export function Board({
   ghostActive = false,
   visualOnly = false,
   worldPickup = null,
+  waver = null,
+  goalOpen = true,
   boardIndex = 0,
   rotationRef,
+  tiltRef = null,
   position = [0, 0, 0],
   control = 'local',
 }) {
   const currentQuat = useRef(new THREE.Quaternion())
   const targetEuler = useRef(new THREE.Euler())
   const targetQuat = useRef(new THREE.Quaternion())
+  const readEuler = useRef(new THREE.Euler())
   const visualGroupRef = useRef(null)
   const arrowTex = useArrowTexture()
   const { pointer } = useThree()
@@ -52,8 +57,9 @@ export function Board({
   const showPickup =
     worldPickup != null && (worldPickup.boardIndex ?? 0) === boardIndex
   const pickupLocal = showPickup ? pickupLocalPosition(data, worldPickup) : null
+  const showWaver = waver != null && (waver.boardIndex ?? 0) === boardIndex
 
-  useFrame((state) => {
+  useFrame(() => {
     if (visualOnly) {
       const group = visualGroupRef.current
       const rot = rotationRef?.current
@@ -80,6 +86,12 @@ export function Board({
         }
       }
     }
+
+    if (tiltRef && control === 'local' && !visualOnly) {
+      readEuler.current.setFromQuaternion(currentQuat.current, 'XYZ')
+      tiltRef.current.x = readEuler.current.x
+      tiltRef.current.z = readEuler.current.z
+    }
   })
 
   const tiles = []
@@ -98,6 +110,7 @@ export function Board({
             thickness={thickness}
             visualOnly={visualOnly}
             frameColor={palette.frame}
+            sealed={!goalOpen}
           />
         )
         continue
@@ -246,6 +259,8 @@ export function Board({
       {showPickup && pickupLocal && (
         <PowerUpPickup type={worldPickup.type} localPosition={pickupLocal} cell={cell} />
       )}
+
+      {showWaver && <WaverCharacter board={data} waver={waver} />}
 
     </>
   )

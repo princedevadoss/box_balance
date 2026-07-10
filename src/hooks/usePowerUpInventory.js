@@ -27,6 +27,7 @@ export function usePowerUpInventory({
   lifeRetrySpawn = false,
   authoritative = true,
   onPowerUpRequest,
+  keyboardShortcuts = true,
   onFlash,
   onHeal,
 }) {
@@ -268,6 +269,7 @@ export function usePowerUpInventory({
   }, [])
 
   useEffect(() => {
+    if (!keyboardShortcuts) return
     const onKey = (e) => {
       if (e.repeat) return
       if (statusRef.current !== 'playing') return
@@ -281,9 +283,9 @@ export function usePowerUpInventory({
         else onPowerUpRequest?.({ type: 'powerup_cycle' })
       }
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [authoritative, activateSelected, cycleSelected, onPowerUpRequest])
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [authoritative, activateSelected, cycleSelected, onPowerUpRequest, keyboardShortcuts])
 
   const applyPowerUpSync = useCallback((peer) => {
     if (peer.inventory) setInventory(peer.inventory)

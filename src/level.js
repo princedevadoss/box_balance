@@ -7,6 +7,7 @@
 // Higher levels => bigger grid, sparser shape, farther hole, more hazards.
 
 import { TILE, LEVELGEN, COOP, BALL, COOP_BOARD_THEMES } from './config'
+import { clampGridN } from './viewport'
 
 const CELL = TILE.size
 const THICKNESS = TILE.thickness
@@ -60,7 +61,7 @@ function pathExists(cells, gridN, a, b, blocked) {
   return false
 }
 
-export function generateLevel(level, roomSeed = null) {
+export function generateLevel(level, roomSeed = null, options = {}) {
   const baseSeed =
     roomSeed != null
       ? (Math.imul(roomSeed, 2654435761) ^ Math.imul(level, 0x9e3779b9)) >>> 0
@@ -68,7 +69,8 @@ export function generateLevel(level, roomSeed = null) {
   const rng = mulberry32(baseSeed)
 
   const { grid, fill, gaps, bumps, boosts, air, lava, movers: moverCfg } = LEVELGEN
-  const gridN = Math.min(grid.base + Math.floor((level - 1) / grid.divisor), grid.max)
+  const levelGridN = Math.min(grid.base + Math.floor((level - 1) / grid.divisor), grid.max)
+  const gridN = clampGridN(levelGridN, options.gridCap)
 
   // Empty bounding grid.
   const cells = []
@@ -341,13 +343,13 @@ function cloneBoardData(template, position, boardIndex, theme, playerCount, seam
 // Co-op: N different boards joined edge-to-edge (2–4 players).
 // Odd levels: spawn on board 0, goal on board N-1.
 // Even levels: spawn on board N-1, goal on board 0.
-export function generateCoopLevel(level, roomSeed = null, playerCount = 2) {
+export function generateCoopLevel(level, roomSeed = null, playerCount = 2, options = {}) {
   const n = Math.max(2, Math.min(4, playerCount))
   const rawBoards = []
   for (let i = 0; i < n; i++) {
     const seed =
       roomSeed != null ? (Math.imul(roomSeed ^ (i + 1), 0xa5a5a5a5) >>> 0) : null
-    rawBoards.push(generateLevel(level, seed))
+    rawBoards.push(generateLevel(level, seed, options))
   }
 
   const seamGapCount = coopSeamGapCount(level)

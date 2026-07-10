@@ -4,11 +4,30 @@ import { useBeforePhysicsStep } from '@react-three/rapier'
 import { BALL, ballJumpVelocity } from '../config'
 import { playLaunch } from '../audio'
 
-export function BallJump({ ballRef, status, isHost = true, onJumpRequest, peerEventRef }) {
+export function BallJump({
+  ballRef,
+  status,
+  isHost = true,
+  onJumpRequest,
+  peerEventRef,
+  canvasJump = true,
+  jumpTriggerRef,
+}) {
   const { gl } = useThree()
   const jumpCd = useRef(0)
   const jumpPending = useRef(false)
   const lastEventKey = useRef('')
+  const lastTriggerTick = useRef(0)
+
+  const queueJump = useCallback(() => {
+    if (status !== 'playing' || jumpCd.current > 0) return
+    if (isHost) {
+      jumpPending.current = true
+    } else {
+      jumpCd.current = BALL.jumpCooldown
+      onJumpRequest?.()
+    }
+  }, [status, isHost, onJumpRequest])
 
   const applyJump = useCallback(() => {
     const b = ballRef.current
@@ -25,6 +44,11 @@ export function BallJump({ ballRef, status, isHost = true, onJumpRequest, peerEv
   })
 
   useBeforePhysicsStep(() => {
+    if (jumpTriggerRef?.current > lastTriggerTick.current) {
+      lastTriggerTick.current = jumpTriggerRef.current
+      queueJump()
+    }
+
     if (jumpPending.current) {
       jumpPending.current = false
       applyJump()
@@ -40,18 +64,11 @@ export function BallJump({ ballRef, status, isHost = true, onJumpRequest, peerEv
   })
 
   useEffect(() => {
-    const onPointerDown = () => {
-      if (status !== 'playing' || jumpCd.current > 0) return
-      if (isHost) {
-        jumpPending.current = true
-      } else {
-        jumpCd.current = BALL.jumpCooldown
-        onJumpRequest?.()
-      }
-    }
+    if (!canvasJump) return
+    const onPointerDown = () => queueJump()
     gl.domElement.addEventListener('pointerdown', onPointerDown)
     return () => gl.domElement.removeEventListener('pointerdown', onPointerDown)
-  }, [status, isHost, onJumpRequest, gl])
+  }, [canvasJump, queueJump, gl])
 
   return null
 }

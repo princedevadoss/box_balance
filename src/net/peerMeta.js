@@ -15,5 +15,7 @@ export function peerMetaKey(state) {
     JSON.stringify(state.inventory),
     JSON.stringify(state.effectsUntil),
     JSON.stringify(state.worldPickup),
+    JSON.stringify(state.waver),
+    state.goalOpen ? '1' : '0',
   ].join('|')
 }
