@@ -1,9 +1,10 @@
-import { useEffect, useCallback, useRef } from 'react'
+import { useEffect, useCallback, useMemo, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { CAMERA, COLORS } from '../config'
 import { useCoopGame } from '../hooks/useCoopGame'
 import { useGameKeyGuard } from '../hooks/useGameKeyGuard'
 import { useViewport } from '../hooks/useViewport'
+import { useVoiceChat } from '../hooks/useVoiceChat'
 import { CoopScene } from './CoopScene'
 import { CoopHud } from './CoopHud'
 import { PowerUpHud } from './PowerUpHud'
@@ -11,6 +12,7 @@ import { PowerUpActiveTimer } from './PowerUpActiveTimer'
 import { TiltLevelHud } from './TiltLevelHud'
 import { MobileBottomStats } from './MobileHud'
 import { MobileActionBar, useJumpTrigger } from './MobileActionBar'
+import { VoiceChatBar } from './VoiceChatBar'
 
 const THEME_LABELS = {
   a: 'purple',
@@ -32,10 +34,24 @@ export function CoopGame({ room, onExit }) {
     peerEventRef,
     sendState,
     sendEvent,
+    sendVoiceSignal,
+    voiceHandlerRef,
     disconnect,
     phase,
     isHost,
   } = room
+
+  const peerSlots = useMemo(
+    () => players.map((p) => p.slot).filter((s) => s !== slot),
+    [players, slot]
+  )
+  const voice = useVoiceChat({
+    active: phase === 'matched',
+    localSlot: slot,
+    peerSlots,
+    sendSignal: sendVoiceSignal,
+    voiceHandlerRef,
+  })
 
   const handleJump = useCallback(() => {
     sendEvent({ type: 'jump' })
@@ -121,6 +137,7 @@ export function CoopGame({ room, onExit }) {
         exitToMenu={handleExit}
       />
       <TiltLevelHud tiltRef={tiltRef} visible={showTilt} compact={viewport.isMobile} />
+      {phase === 'matched' && <VoiceChatBar voice={voice} />}
       {!viewport.isMobile && (
         <PowerUpHud inventory={game.inventory} selectedType={game.selectedType} />
       )}

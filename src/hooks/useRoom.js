@@ -30,6 +30,7 @@ export function useRoom() {
   const peerEventRef = useRef(null)
   const peerStateRef = useRef(null)
   const peerMetaStamp = useRef('')
+  const voiceHandlerRef = useRef(null)
 
   const cleanup = useCallback(() => {
     socketRef.current?.close()
@@ -94,6 +95,10 @@ export function useRoom() {
       }
       if (msg.type === MSG.PEER_EVENT) {
         peerEventRef.current = { slot: msg.slot, event: msg.event, ts: Date.now() }
+        return
+      }
+      if (msg.type === MSG.VOICE_SIGNAL) {
+        voiceHandlerRef.current?.(msg)
         return
       }
       if (msg.type === MSG.PLAYER_LEFT) {
@@ -188,6 +193,14 @@ export function useRoom() {
     })
   }, [])
 
+  const sendVoiceSignal = useCallback((toSlot, signal) => {
+    socketRef.current?.send({
+      type: MSG.VOICE_SIGNAL,
+      toSlot,
+      signal,
+    })
+  }, [])
+
   const disconnect = useCallback(() => {
     cleanup()
     setPhase('idle')
@@ -239,6 +252,8 @@ export function useRoom() {
     sendStart,
     sendState,
     sendEvent,
+    sendVoiceSignal,
+    voiceHandlerRef,
     disconnect,
     resetError,
   }

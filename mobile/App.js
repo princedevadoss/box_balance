@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  PermissionsAndroid,
   Platform,
   Pressable,
   SafeAreaView,
@@ -165,6 +166,27 @@ function GameScreen({ gameUrl, onExit, onLoadError }) {
     }
   }, [gyroOn, pushGyro, beginCalibration])
 
+  useEffect(() => {
+    if (Platform.OS !== 'android') return undefined
+    let cancelled = false
+    ;(async () => {
+      try {
+        await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO, {
+          title: 'Microphone',
+          message: 'Nizhen catch needs the mic for in-game voice chat.',
+          buttonPositive: 'Allow',
+          buttonNegative: 'Deny',
+        })
+      } catch {
+        // ignore — voice join will surface the error
+      }
+      if (cancelled) return
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   return (
     <View style={styles.gameRoot}>
       <RNStatusBar hidden />
@@ -176,6 +198,7 @@ function GameScreen({ gameUrl, onExit, onLoadError }) {
         originWhitelist={['*']}
         allowsInlineMediaPlayback
         mediaPlaybackRequiresUserAction={false}
+        mediaCapturePermissionGrantType="grant"
         javaScriptEnabled
         domStorageEnabled
         allowFileAccess
@@ -187,6 +210,12 @@ function GameScreen({ gameUrl, onExit, onLoadError }) {
         bounces={false}
         // Set BEFORE game JS loads so the 30MB FBX is never requested on phone.
         injectedJavaScriptBeforeContentLoaded={`window.__NIZHEN_NATIVE__=true;window.__NIZHEN_GYRO__={x:0,y:0,active:false,updatedAt:0};true;`}
+        onPermissionRequest={(event) => {
+          // Android WebView: allow mic/camera capture for voice chat.
+          if (Platform.OS === 'android' && event?.nativeEvent?.grant) {
+            event.nativeEvent.grant(event.nativeEvent.resources)
+          }
+        }}
         onLoadStart={() => {
           readyRef.current = false
           setWebLoading(true)

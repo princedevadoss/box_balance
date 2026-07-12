@@ -5,6 +5,7 @@ import { useGame } from '../hooks/useGame'
 import { useGameKeyGuard } from '../hooks/useGameKeyGuard'
 import { useViewport } from '../hooks/useViewport'
 import { useSplitResize } from '../hooks/useSplitResize'
+import { useVoiceChat } from '../hooks/useVoiceChat'
 import { resolveMatch, chaseTarget } from '../multiplayer/matchEnd'
 import { Scene } from './Scene'
 import { RemoteScene } from './RemoteScene'
@@ -14,6 +15,7 @@ import { PowerUpActiveTimer } from './PowerUpActiveTimer'
 import { MobileBottomStats, MobileSplitToggle, OpponentScoreBadge } from './MobileHud'
 import { MobileActionBar, useJumpTrigger } from './MobileActionBar'
 import { TiltLevelHud } from './TiltLevelHud'
+import { VoiceChatBar } from './VoiceChatBar'
 import {
   PaneHud,
   PaneFlash,
@@ -26,9 +28,35 @@ import {
 } from './PaneHud'
 
 export function MultiplayerGame({ room, onExit }) {
-  const { code, seed, peerState, peerStateRef, sendState, disconnect, phase, playerName, peerName } = room
+  const {
+    code,
+    seed,
+    slot,
+    players,
+    peerState,
+    peerStateRef,
+    sendState,
+    sendVoiceSignal,
+    voiceHandlerRef,
+    disconnect,
+    phase,
+    playerName,
+    peerName,
+  } = room
   const viewport = useViewport()
   const { jumpTriggerRef, requestJump } = useJumpTrigger()
+  const peerSlots = useMemo(() => {
+    const fromList = players.map((p) => p.slot).filter((s) => s !== slot)
+    if (fromList.length) return fromList
+    return [slot === 0 ? 1 : 0]
+  }, [players, slot])
+  const voice = useVoiceChat({
+    active: phase === 'matched',
+    localSlot: slot,
+    peerSlots,
+    sendSignal: sendVoiceSignal,
+    voiceHandlerRef,
+  })
   const game = useGame({
     roomSeed: seed,
     gridCap: viewport.gridCap,
@@ -120,6 +148,7 @@ export function MultiplayerGame({ room, onExit }) {
       />
       <div className="split-header">
         <span className="room-code">Room {code}</span>
+        {phase === 'matched' && <VoiceChatBar voice={voice} />}
         {viewport.isMobile && !mobileSplit && (
           <OpponentScoreBadge
             name={remoteLabel}

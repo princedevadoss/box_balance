@@ -13,12 +13,21 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.nizhencatch.app"
+      "bundleIdentifier": "com.nizhencatch.app",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Nizhen catch uses the microphone for voice chat in co-op and versus games."
+      }
     },
     "android": {
       "package": "com.nizhencatch.app",
       "versionCode": 1,
       "usesCleartextTraffic": true,
+      "permissions": [
+        "RECORD_AUDIO",
+        "MODIFY_AUDIO_SETTINGS",
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#0f1220",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -28,6 +37,11 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "789ebc2a-2aef-4e70-8596-36f97f097806"
+      }
     }
   }
 }

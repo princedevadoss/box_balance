@@ -168,6 +168,23 @@ wss.on('connection', (ws) => {
       }
       const peer = rooms.getPeer(ws)
       if (peer) send(peer, { type: 'PEER_EVENT', event: msg.event })
+      return
+    }
+
+    // WebRTC voice: relay SDP / ICE to a specific slot in the same room.
+    if (msg.type === 'VOICE_SIGNAL') {
+      const room = rooms.getRoom(ws)
+      const info = rooms.clients.get(ws)
+      if (!room || !info) return
+      const toSlot = Number(msg.toSlot)
+      if (!Number.isFinite(toSlot)) return
+      const target = room.players.find((p) => p.slot === toSlot)
+      if (!target || target.ws === ws) return
+      send(target.ws, {
+        type: 'VOICE_SIGNAL',
+        fromSlot: info.slot,
+        signal: msg.signal,
+      })
     }
   })
 

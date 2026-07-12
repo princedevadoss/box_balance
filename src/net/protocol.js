@@ -13,6 +13,7 @@ export const MSG = {
   EVENT: 'EVENT',
   PEER_EVENT: 'PEER_EVENT',
   PLAYER_LEFT: 'PLAYER_LEFT',
+  VOICE_SIGNAL: 'VOICE_SIGNAL',
 }
 
 export function wsUrl() {
