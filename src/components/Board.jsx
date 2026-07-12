@@ -4,6 +4,7 @@ import { RigidBody, CuboidCollider } from '@react-three/rapier'
 import * as THREE from 'three'
 import { cellCenter } from '../level'
 import { BOARD, TILE, LEVELGEN, COLORS, effectIntensity } from '../config'
+import { getGyroPointer } from '../gyroInput'
 import { useArrowTexture, boostAngle } from '../textures'
 import { AirEffect, LavaEffect } from './effects'
 import { PocketTile } from './PocketTile'
@@ -74,9 +75,13 @@ export function Board({
             body.setNextKinematicRotation(currentQuat.current)
           }
         } else if (status === 'playing' || status === 'countdown') {
-          targetEuler.current.set(-pointer.y * BOARD.maxTilt, 0, -pointer.x * BOARD.maxTilt, 'XYZ')
+          const gyro = getGyroPointer()
+          const px = gyro ? gyro.x : pointer.x
+          const py = gyro ? gyro.y : pointer.y
+          const ease = gyro ? BOARD.gyroTiltEase : BOARD.tiltEase
+          targetEuler.current.set(-py * BOARD.maxTilt, 0, -px * BOARD.maxTilt, 'XYZ')
           targetQuat.current.setFromEuler(targetEuler.current)
-          currentQuat.current.slerp(targetQuat.current, BOARD.tiltEase)
+          currentQuat.current.slerp(targetQuat.current, ease)
           body.setNextKinematicRotation(currentQuat.current)
         } else {
           targetEuler.current.set(0, 0, 0, 'XYZ')
@@ -260,7 +265,7 @@ export function Board({
         <PowerUpPickup type={worldPickup.type} localPosition={pickupLocal} cell={cell} />
       )}
 
-      {showWaver && <WaverCharacter board={data} waver={waver} />}
+      <WaverCharacter board={data} waver={showWaver ? waver : null} />
 
     </>
   )

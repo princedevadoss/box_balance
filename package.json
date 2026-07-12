@@ -5,11 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:lan": "vite --host",
     "server": "node server/index.js",
     "dev:all": "concurrently -n web,ws -c cyan,magenta \"npm run dev\" \"npm run server\"",
+    "dev:all:lan": "concurrently -n web,ws -c cyan,magenta \"npm run dev:lan\" \"npm run server\"",
     "build": "vite build",
     "start": "node server/index.js",
-    "preview": "vite preview"
+    "preview": "vite preview --host",
+    "mobile": "npm --prefix mobile start",
+    "mobile:android": "npm --prefix mobile run android"
   },
   "dependencies": {
     "@react-three/drei": "^9.114.0",

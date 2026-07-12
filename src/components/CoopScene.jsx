@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef } from 'react'
+import { memo, useCallback, useEffect, useRef, Suspense } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { ContactShadows } from '@react-three/drei'
 import { Physics } from '@react-three/rapier'
@@ -18,6 +18,7 @@ import { CoopFlyAim } from './CoopFlyAim'
 import { PowerUpCollector } from './PowerUpCollector'
 import { PowerUpPhysicsBridge } from './PowerUpPhysicsBridge'
 import { WaverCollector } from './WaverCollector'
+import { WaverPrewarm } from './WaverCharacter'
 
 function CoopCameraRig({ slot, boards }) {
   const { camera, size } = useThree()
@@ -201,6 +202,9 @@ export const CoopScene = memo(function CoopScene({
   return (
     <>
       <SceneLighting />
+      <Suspense fallback={null}>
+        <WaverPrewarm />
+      </Suspense>
       <CoopCameraRig slot={slot} boards={boards} />
       <PeerNetworkBridge
         peerState={peerState}

@@ -23,7 +23,8 @@ export const WAVER = {
   spawnOffsetMin: 3, // |Δrow| and |Δcol| from ball must be in [min, max]
   spawnOffsetMax: 5,
   walkTiles: 4, // walk this many grids during the appearance
-  pickupRadius: 2.0,
+  // Ball radius (~0.55) + character body half-width — contact only, not adjacent tiles.
+  pickupRadius: 0.8,
   hoverY: 0.05,
   modelHeight: 1.55, // fit character height in world units
   // Random delay after the level enters "playing" (0–20s)
@@ -109,8 +110,14 @@ export const POWERUP = {
 export const BOARD = {
   maxTilt: 0.32, // radians at full mouse deflection
   tiltEase: 0.15, // slerp factor toward the target tilt each frame
+  // Faster follow when controlled by phone gyro (RN app).
+  gyroTiltEase: 0.42,
   // Spirit-level HUD: board is "stable" when both tilt axes stay under this (degrees).
   stableDeg: 1.5,
+  // Native gyro: phone angle (degrees) that maps to full board tilt.
+  gyroFullTiltDeg: 42,
+  // Ignore tiny phone wobble when nearly flat (degrees).
+  gyroDeadzoneDeg: 3.5,
 }
 
 export const BALL = {

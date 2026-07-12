@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, Suspense } from 'react'
 import { ContactShadows } from '@react-three/drei'
 import { Physics } from '@react-three/rapier'
 import { PHYSICS, BALL } from '../config'
@@ -14,6 +14,7 @@ import { StateBroadcaster } from './StateBroadcaster'
 import { PowerUpCollector } from './PowerUpCollector'
 import { PowerUpPhysicsBridge } from './PowerUpPhysicsBridge'
 import { WaverCollector } from './WaverCollector'
+import { WaverPrewarm } from './WaverCharacter'
 
 import { AdaptiveCameraRig } from './AdaptiveCameraRig'
 
@@ -57,6 +58,9 @@ export function Scene({
     <>
       <SceneLighting />
       <AdaptiveCameraRig extent={extent} />
+      <Suspense fallback={null}>
+        <WaverPrewarm />
+      </Suspense>
       <LocalFlyAim
         flyActive={flyActive}
         status={status}

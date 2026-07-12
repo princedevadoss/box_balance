@@ -81,8 +81,9 @@ export function useWaverBonus({
     if (spawnedRef.current) return
 
     lastTickRef.current = performance.now()
+    let spawnScheduled = false
     const id = setInterval(() => {
-      if (spawnedRef.current) return
+      if (spawnedRef.current || spawnScheduled) return
       const now = performance.now()
       const last = lastTickRef.current ?? now
       lastTickRef.current = now
@@ -93,20 +94,33 @@ export function useWaverBonus({
       const ball = getBallPosition?.()
       if (!ball) return
 
-      const spot = pickWaverSpawn(dataRef.current, ball.x, ball.z)
-      spawnedRef.current = true
-      if (!spot) {
-        openGoal()
-        return
-      }
+      // Defer pathfinding + React state off the physics/render tick to avoid a hitch.
+      spawnScheduled = true
+      const ballX = ball.x
+      const ballZ = ball.z
+      const schedule =
+        typeof requestIdleCallback === 'function'
+          ? (fn) => requestIdleCallback(fn, { timeout: 48 })
+          : (fn) => setTimeout(fn, 0)
 
-      const waverData = {
-        ...spot,
-        startedAt: now,
-        expiresAt: now + WAVER.durationSec * 1000,
-      }
-      waverRef.current = waverData
-      setWaver(waverData)
+      schedule(() => {
+        if (spawnedRef.current) return
+        const spot = pickWaverSpawn(dataRef.current, ballX, ballZ)
+        spawnedRef.current = true
+        if (!spot) {
+          openGoal()
+          return
+        }
+
+        const startedAt = performance.now()
+        const waverData = {
+          ...spot,
+          startedAt,
+          expiresAt: startedAt + WAVER.durationSec * 1000,
+        }
+        waverRef.current = waverData
+        setWaver(waverData)
+      })
     }, 200)
 
     return () => clearInterval(id)

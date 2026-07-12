@@ -242,23 +242,6 @@ export function waverProgress(waver, now = performance.now(), timingRef = null) 
   return Math.max(0, Math.min(1, (now - waver.startedAt) / span))
 }
 
-export function waverTouchesBall(board, waver, ballX, ballZ, progress) {
-  const { r: ballR, c: ballC } = worldToCell(board, ballX, ballZ)
-  const { r, c } = waverCharacterCell(board, waver, progress)
-  const charR = Math.round(r)
-  const charC = Math.round(c)
-  const manhattan = Math.abs(ballR - charR) + Math.abs(ballC - charC)
-  if (manhattan <= 1) return true
-
-  const { gridN, cell } = board
-  const [ox, , oz] = board.position ?? [0, 0, 0]
-  const charX = ox + (c - (gridN - 1) / 2) * cell
-  const charZ = oz + (r - (gridN - 1) / 2) * cell
-  const dx = ballX - charX
-  const dz = ballZ - charZ
-  return Math.hypot(dx, dz) < WAVER.pickupRadius
-}
-
 export function planWaverSpawnDelay(rng = Math.random) {
   const span = Math.max(0, WAVER.spawnDelayMaxSec - WAVER.spawnDelayMinSec)
   return WAVER.spawnDelayMinSec + rng() * span

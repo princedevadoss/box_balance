@@ -16,7 +16,22 @@ export const MSG = {
 }
 
 export function wsUrl() {
+  if (typeof window === 'undefined') return 'ws://localhost:3001/ws'
+
+  const params = new URLSearchParams(window.location.search)
+  const override =
+    window.__NIZHEN_WS_HOST__ ||
+    params.get('wsHost') ||
+    import.meta.env.VITE_WS_HOST ||
+    ''
+
+  if (override) {
+    const host = String(override).replace(/^https?:\/\//i, '').replace(/\/$/, '')
+    const secure =
+      window.location.protocol === 'https:' || String(override).startsWith('wss')
+    return `${secure ? 'wss:' : 'ws:'}//${host}/ws`
+  }
+
   const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  const host = import.meta.env.VITE_WS_HOST || window.location.host
-  return `${proto}//${host}/ws`
+  return `${proto}//${window.location.host}/ws`
 }
