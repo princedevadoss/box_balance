@@ -3,3 +3,8 @@ dist
 .env
 .env.*
 .DS_Store
+mobile/node_modules
+mobile/.expo
+mobile/dist
+*.apk
+*.aab
